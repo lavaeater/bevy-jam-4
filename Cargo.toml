@@ -19,11 +19,6 @@ itertools = "0.12.0"
 belly = { git="https://github.com/jkb0o/belly/", branch="0.12" }
 rand = "0.8.5"
 time = { version = "0.3.30", features = [] }
-palette = "0.7.3"
-image = "0.24.7"
-anyhow = "1.0.75"
-bitintr = "0.3.0"
-nalgebra = "0.32.3"
 bevy_voxel_world = "0.3.3"
 bevy_vox_mesh = "0.8.0"
 bevy_atmosphere = "0.8.1"
