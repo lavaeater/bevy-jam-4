@@ -12,11 +12,13 @@ big-brain = { git="https://github.com/zkat/big-brain", branch="main" }
 rand_chacha = "0.3.1"
 flagset = "0.4.4"
 bonsai-bt = "0.5.0"
-serde = "1.0.192"
-serde_json = "1.0.105"
-pathfinding = "4.3.2"
+serde = "1.0.193"
+serde_json = "1.0.108"
+pathfinding = "4.4.0"
 itertools = "0.12.0"
 belly = { git="https://github.com/jkb0o/belly/", branch="0.12" }
+rand = "0.8.5"
+time = { version = "0.3.30", features = [] }
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
