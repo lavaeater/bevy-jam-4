@@ -1,106 +1,183 @@
-use bevy_terrain::{terrain_common::{
-    Terrain, TerrainImageLoadOptions, TerrainMeshResource}, terrain_rtin::{RtinParams, rtin_load_terrain}};
-use bevy_terrain::{gizmo::add_axis_gizmo, terrain::{terrain_example}, terrain_material::TerrainMaterial};
-use bevy::prelude::*;
-use bevy_fly_camera::{FlyCamera, FlyCameraPlugin};
-use bevy_render::{
-    mesh::{Mesh},
-};
-use bevy_terrain::terrain_material::add_terrain_material;
-use ui::{ButtonMaterials, button_system, setup_ui, show_ui_system, update_terrain_system};
-
-use bevy::{
-    render::{
-        pipeline::{PipelineDescriptor, RenderPipeline},
-        render_graph::{RenderGraph},
-    },
-};
-use bevy::render::render_resource::PipelineDescriptor;
-
+use bevy::{pbr::AmbientLight, prelude::*};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 fn main() {
-
-    terrain_example();
-
-    App::build()
-        .add_resource(Msaa { samples: 4 })
+    App::new()
         .add_plugins(DefaultPlugins)
-        .add_asset::<TerrainMaterial>()
-        .init_resource::<TerrainMeshResource>()
-        .init_resource::<RtinParams>()
-        .add_systems(Startup, (
-            setup,
-            update_terrain_system,
-
-        ))
+        .insert_resource(AmbientLight {
+            brightness: 0.03,
+            ..default()
+        })
+        .insert_resource(ClearColor(Color::BLACK))
+        .add_systems(Startup, generate_bodies)
+        .add_systems(FixedUpdate, (interact_bodies, integrate))
+        .add_systems(Update, look_at_star)
         .run();
 }
 
+const GRAVITY_CONSTANT: f32 = 0.001;
+const NUM_BODIES: usize = 100;
 
-fn setup(
-    commands: &mut Commands,
+#[derive(Component, Default)]
+struct Mass(f32);
+#[derive(Component, Default)]
+struct Acceleration(Vec3);
+#[derive(Component, Default)]
+struct LastPos(Vec3);
+#[derive(Component)]
+struct Star;
+
+#[derive(Bundle, Default)]
+struct BodyBundle {
+    pbr: PbrBundle,
+    mass: Mass,
+    last_pos: LastPos,
+    acceleration: Acceleration,
+}
+
+fn generate_bodies(
+    time: Res<Time>,
+    mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    materials: ResMut<Assets<StandardMaterial>>,
-    asset_server: Res<AssetServer>,
-    pipelines: ResMut<Assets<PipelineDescriptor>>,
-    shaders: ResMut<Assets<Shader>>,
-    render_graph: ResMut<RenderGraph>,
-    mut rtin_params: ResMut<RtinParams>,
-    mut terrain_mesh_res: ResMut<TerrainMeshResource>,
-    color_materials: ResMut<Assets<ColorMaterial>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-
-    let image_filename = "terrain.png";
-
-    rtin_params.error_threshold = 0.2;
-    rtin_params.load_options = TerrainImageLoadOptions {
-        max_image_height : 20f32,
-        pixel_side_length: 1f32
-    };
-
-    let (terrain_shaded_mesh, terrain_wireframe_mesh) = 
-        rtin_load_terrain(image_filename,
-            &rtin_params);
-
-    let terrain_shaded_mesh_handle = meshes.add(terrain_shaded_mesh);
-    let terrain_wireframe_mesh_handle = meshes.add(terrain_wireframe_mesh);
-
-    terrain_mesh_res.shaded = terrain_shaded_mesh_handle;
-    terrain_mesh_res.wireframe = terrain_wireframe_mesh_handle;
-
-    let pipeline_handle = add_terrain_material(
-        pipelines, shaders, render_graph);
-
-
-    commands
-        .spawn(MeshBundle {
-            mesh: terrain_mesh_res.shaded.clone(),
-            render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
-                pipeline_handle,
-            )]),
-            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
-            ..Default::default()
-        }).with(Terrain{})
-        .spawn(LightBundle {
-            transform: Transform::from_translation(Vec3::new(0.0, 4.0, 0.0)),
-            ..Default::default()
+    let mesh = meshes.add(
+        Mesh::try_from(shape::Icosphere {
+            radius: 1.0,
+            subdivisions: 3,
         })
-        // camera
-        .spawn(Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(0.0, 20.0, 0.0))
-                .looking_at(Vec3::default(), Vec3::unit_y()),
-            ..Default::default()
-        })
-        .with(FlyCamera{
-            pitch: 180.0,
-            ..Default::default()
+            .unwrap(),
+    );
+
+    let color_range = 0.5..1.0;
+    let vel_range = -0.5..0.5;
+
+    let mut rng = StdRng::seed_from_u64(19878367467713);
+    for _ in 0..NUM_BODIES {
+        let radius: f32 = rng.gen_range(0.1..0.7);
+        let mass_value = radius.powi(3) * 10.;
+
+        let position = Vec3::new(
+            rng.gen_range(-1.0..1.0),
+            rng.gen_range(-1.0..1.0),
+            rng.gen_range(-1.0..1.0),
+        )
+            .normalize()
+            * rng.gen_range(0.2f32..1.0).cbrt()
+            * 15.;
+
+        commands.spawn(BodyBundle {
+            pbr: PbrBundle {
+                transform: Transform {
+                    translation: position,
+                    scale: Vec3::splat(radius),
+                    ..default()
+                },
+                mesh: mesh.clone(),
+                material: materials.add(
+                    Color::rgb(
+                        rng.gen_range(color_range.clone()),
+                        rng.gen_range(color_range.clone()),
+                        rng.gen_range(color_range.clone()),
+                    )
+                        .into(),
+                ),
+                ..default()
+            },
+            mass: Mass(mass_value),
+            acceleration: Acceleration(Vec3::ZERO),
+            last_pos: LastPos(
+                position
+                    - Vec3::new(
+                    rng.gen_range(vel_range.clone()),
+                    rng.gen_range(vel_range.clone()),
+                    rng.gen_range(vel_range.clone()),
+                ) * time.delta_seconds(),
+            ),
         });
+    }
 
-    // add_axis_gizmo(commands, meshes, materials, 
-    //     Transform::from_translation(Vec3::new(0f32, 0f32, 0f32)));
+    // add bigger "star" body in the center
+    let star_radius = 1.;
+    commands
+        .spawn((
+            BodyBundle {
+                pbr: PbrBundle {
+                    transform: Transform::from_scale(Vec3::splat(star_radius)),
+                    mesh: meshes.add(
+                        Mesh::try_from(shape::Icosphere {
+                            radius: 1.0,
+                            subdivisions: 5,
+                        })
+                            .unwrap(),
+                    ),
+                    material: materials.add(StandardMaterial {
+                        base_color: Color::ORANGE_RED,
+                        emissive: (Color::ORANGE_RED * 2.),
+                        ..default()
+                    }),
+                    ..default()
+                },
+                mass: Mass(500.0),
+                ..default()
+            },
+            Star,
+        ))
+        .with_children(|p| {
+            p.spawn(PointLightBundle {
+                point_light: PointLight {
+                    color: Color::WHITE,
+                    intensity: 400.0,
+                    range: 100.0,
+                    radius: star_radius,
+                    ..default()
+                },
+                ..default()
+            });
+        });
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_xyz(0.0, 10.5, -30.0).looking_at(Vec3::ZERO, Vec3::Y),
+        ..default()
+    });
+}
 
-    setup_ui(commands,
-        asset_server,
-        color_materials,
-        button_materials, rtin_params);
+fn interact_bodies(mut query: Query<(&Mass, &GlobalTransform, &mut Acceleration)>) {
+    let mut iter = query.iter_combinations_mut();
+    while let Some([(Mass(m1), transform1, mut acc1), (Mass(m2), transform2, mut acc2)]) =
+        iter.fetch_next()
+    {
+        let delta = transform2.translation() - transform1.translation();
+        let distance_sq: f32 = delta.length_squared();
+
+        let f = GRAVITY_CONSTANT / distance_sq;
+        let force_unit_mass = delta * f;
+        acc1.0 += force_unit_mass * *m2;
+        acc2.0 -= force_unit_mass * *m1;
+    }
+}
+
+fn integrate(time: Res<Time>, mut query: Query<(&mut Acceleration, &mut Transform, &mut LastPos)>) {
+    let dt_sq = time.delta_seconds() * time.delta_seconds();
+    for (mut acceleration, mut transform, mut last_pos) in &mut query {
+        // verlet integration
+        // x(t+dt) = 2x(t) - x(t-dt) + a(t)dt^2 + O(dt^4)
+
+        let new_pos = transform.translation * 2.0 - last_pos.0 + acceleration.0 * dt_sq;
+        acceleration.0 = Vec3::ZERO;
+        last_pos.0 = transform.translation;
+        transform.translation = new_pos;
+    }
+}
+
+fn look_at_star(
+    mut camera: Query<&mut Transform, (With<Camera>, Without<Star>)>,
+    star: Query<&Transform, With<Star>>,
+) {
+    let mut camera = camera.single_mut();
+    let star = star.single();
+    let new_rotation = camera
+        .looking_at(star.translation, Vec3::Y)
+        .rotation
+        .lerp(camera.rotation, 0.1);
+    camera.rotation = new_rotation;
 }

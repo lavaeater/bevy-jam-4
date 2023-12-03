@@ -1,24 +1,22 @@
-use crate::{terrain_common::TerrainImageLoadOptions, terrain_material::TerrainMaterial};
 // use Srgb::into_raw;
 use image::{ImageBuffer, Luma};
 extern crate nalgebra as na;
-use bevy_render::{
-    pipeline::PrimitiveTopology,
-    mesh::{Mesh, VertexAttributeValues, Indices},
-};
+
 use na::Scalar;
 use std::{collections::HashMap, vec::Vec};
 use bevy::prelude::*;
-use anyhow::Result;
-use palette::{FromColor, Gradient, Hsv, LinSrgb, Srgb};
+use bevy::render::mesh::{Indices, PrimitiveTopology, VertexAttributeValues};
+use bevy_atmosphere::prelude::Gradient;
+use palette::{Hsv, LinSrgb, Srgb};
+use crate::generator::rtin::{BinId, get_index_level_start, get_triangle_children_bin_ids, get_triangle_children_indices, get_triangle_coords, index_to_bin_id, pixel_coords_for_triangle_mid_point, TriangleU32, Vec2u32};
+use crate::generator::terrain_common::TerrainImageLoadOptions;
 
 type ErrorsVec = Vec::<f32>;
 
-use crate::rtin::{BinId, TriangleU32, Vec2u32, get_index_level_start, get_triangle_children_bin_ids, get_triangle_children_indices, get_triangle_coords, index_to_bin_id, pixel_coords_for_triangle_mid_point};
 
 type HeightMapU16 = ImageBuffer<Luma<u16>, Vec::<u16>>;
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct RtinParams {
     pub error_threshold: f32, 
     pub load_options: TerrainImageLoadOptions
@@ -132,7 +130,7 @@ pub fn rtin_make_terrain_mesh(
 
     let mut vertices : Vec::<[f32; 3]> = Vec::new();
     let mut indices : Vec::<u32> = Vec::new();
-    let mut colors  : Vec::<[f32; 3]> = Vec::new();
+    let mut colors  : Vec::<[f32; 4]> = Vec::new();
     let indices_len = if enable_wireframe {
         terrain_mesh_data.indices.len() * 2
     } else {
@@ -143,10 +141,7 @@ pub fn rtin_make_terrain_mesh(
     colors.reserve(vertices.len());
     indices.reserve(indices_len);
 
-    let grad = Gradient::new(vec![
-        Hsv::from(LinSrgb::new(1.0, 0.1, 0.1)),
-        Hsv::from(LinSrgb::new(0.1, 1.0, 1.0))
-    ]);
+    let grad = Gradient::default();
 
     for vertex in &terrain_mesh_data.vertices {
         vertices.push(
@@ -154,10 +149,17 @@ pub fn rtin_make_terrain_mesh(
             vertex.y * load_options.max_image_height, 
             vertex.z * load_options.pixel_side_length]);
 
-        let color = grad.get(vertex.y);
-        let raw_float : Srgb::<f32> = 
-            Srgb::<f32>::from_linear(color.into());
-        colors.push([raw_float.red, raw_float.green, raw_float.blue]);
+        let color = Color::WHITE;
+        // let colors: Vec<[f32; 4]> = positions
+        //         .iter()
+        //         .map(|[r, g, b]| [(1. - *r) / 2., (1. - *g) / 2., (1. - *b) / 2., 1.])
+        //         .collect();
+        //     terrain_shaded_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
+
+
+
+
+        colors.push([color.as_rgba().r(), color.as_rgba().g(), color.as_rgba().b(), color.as_rgba().a()]);
     }
 
 
@@ -178,12 +180,12 @@ pub fn rtin_make_terrain_mesh(
     }
 
 
-    mesh.set_attribute(
+    mesh.insert_attribute(
         Mesh::ATTRIBUTE_POSITION,
-        VertexAttributeValues::Float3(vertices));
-    mesh.set_attribute(
-        TerrainMaterial::ATTRIBUTE_COLOR, 
-        VertexAttributeValues::Float3(colors)
+        VertexAttributeValues::Float32x3(vertices));
+    mesh.insert_attribute(
+        Mesh::ATTRIBUTE_COLOR,
+        VertexAttributeValues::Float32x4(colors)
     );
     mesh.set_indices(Some(Indices::U32(indices)));
 

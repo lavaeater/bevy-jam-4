@@ -1,25 +1,24 @@
 use anyhow::Result;
 use std::vec::Vec;
-use crate::terrain_common::TerrainImageLoadOptions;
+use bevy::prelude::Mesh;
+use bevy::render::mesh::{Indices, PrimitiveTopology, VertexAttributeValues};
 use image::ImageBuffer;
-use bevy_render::{
-    pipeline::PrimitiveTopology,
-    mesh::{Mesh, VertexAttributeValues, Indices},
-};
+
 use image::Luma;
+use crate::generator::terrain_common::TerrainImageLoadOptions;
 
-
-pub fn terrain_example() -> Mesh {
-    let options = TerrainImageLoadOptions {
-        max_image_height : 1f32,
-        pixel_side_length : 1f32,
-    };
-
-    let filename = "terrain.png";
-
-    let mesh = load_terrain_bitmap(filename, options);
-    mesh.unwrap()
-}
+//
+// pub fn terrain_example() -> Mesh {
+//     let options = TerrainImageLoadOptions {
+//         max_image_height : 1f32,
+//         pixel_side_length : 1f32,
+//     };
+//
+//     let filename = "terrain.png";
+//
+//     let mesh = load_terrain_bitmap(filename, options);
+//     mesh.unwrap()
+// }
 
 fn sample_vertex_height(cy: i32, cx: i32, heightmap: &ImageBuffer<Luma<u16>, Vec::<u16>>) -> f32 {
     let mut cnt = 0;
@@ -104,15 +103,15 @@ fn load_terrain_bitmap(filename: &str, options: TerrainImageLoadOptions) -> Resu
     assert!(indices.len() as u32 /  3 == 2  * heightmap.height() * (heightmap.width()) );
 
 
-    mesh.set_attribute(
+    mesh.insert_attribute(
         Mesh::ATTRIBUTE_POSITION,
-        VertexAttributeValues::Float3(vertices));
-    mesh.set_attribute(
+        VertexAttributeValues::Float32x3(vertices));
+    mesh.insert_attribute(
         Mesh::ATTRIBUTE_NORMAL, 
-        VertexAttributeValues::Float3(normals));
-    mesh.set_attribute(
+        VertexAttributeValues::Float32x3(normals));
+    mesh.insert_attribute(
         Mesh::ATTRIBUTE_UV_0,
-         VertexAttributeValues::Float3(uvs));
+         VertexAttributeValues::Float32x3(uvs));
     mesh.set_indices(Some(Indices::U32(indices)));
 
 

@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+#[derive(Component)]
 pub struct Terrain {}
 
 #[derive(Default)]
@@ -7,7 +8,7 @@ pub struct TerrainImageLoadOptions {
     pub pixel_side_length : f32
 }
 
-#[derive(Default)]
+#[derive(Default, Resource)]
 pub struct TerrainMeshResource {
     pub shaded: Handle<Mesh>,
     pub wireframe: Handle<Mesh>,
