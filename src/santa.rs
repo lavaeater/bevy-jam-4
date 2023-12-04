@@ -2,7 +2,7 @@ use bevy::app::{App, Plugin, Startup};
 use bevy::asset::AssetServer;
 use bevy::core::Name;
 use bevy::hierarchy::BuildChildren;
-use bevy::prelude::{Commands, Component, ResMut, Transform};
+use bevy::prelude::{Commands, Component, Res, ResMut, Transform};
 use bevy::scene::SceneBundle;
 use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, LockedAxes, RigidBody};
 use bevy_xpbd_3d::prelude::PhysicsLayer;
@@ -38,7 +38,7 @@ pub struct Santa;
 
 fn spawn_santa(
     mut commands: Commands,
-    mut asset_server: ResMut<AssetServer>
+    asset_server: Res<AssetServer>
 ) {
     commands.spawn((
         Name::from("Saint Nicholas"),

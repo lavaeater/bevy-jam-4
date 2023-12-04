@@ -25,7 +25,6 @@ pub struct FollowCamera {
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_plugins(AtmospherePlugin)
             .add_systems(Startup, spawn_camera)
             .add_systems(Update, camera_follow)
         ;
@@ -37,7 +36,7 @@ fn spawn_camera(mut commands: Commands) {
         Camera3dBundle::default(),
         AtmosphereCamera::default(),
         GameCamera {},
-        CameraOffset(Vec3::new(20.0, 15.0, 20.0)),
+        CameraOffset(Vec3::new(0.0, 5.0, -5.0)),
     ));
 }
 

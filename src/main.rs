@@ -6,6 +6,7 @@ mod input;
 use bevy::{prelude::*};
 use bevy_xpbd_3d::plugins::{PhysicsDebugPlugin, PhysicsPlugins};
 use crate::camera::CameraPlugin;
+use crate::environment::EnvironmentPlugin;
 use crate::input::InputPlugin;
 use crate::santa::SantaPlugin;
 
@@ -13,6 +14,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(GamePlugin)
+        .add_plugins(EnvironmentPlugin)
         .add_plugins(CameraPlugin)
         .add_plugins(SantaPlugin)
         .add_plugins(InputPlugin)
