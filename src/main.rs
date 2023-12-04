@@ -30,7 +30,8 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(PhysicsPlugins::default())
-            .add_plugins(PhysicsDebugPlugin::default());
+            // .add_plugins(PhysicsDebugPlugin::default())
+        ;
     }
 }
 
