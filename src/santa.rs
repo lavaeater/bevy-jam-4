@@ -82,7 +82,7 @@ fn spawn_santa(
         AngularDamping(1.0),
         LinearDamping(0.9),
         RigidBody::Dynamic,
-        LockedAxes::new().lock_rotation_x().lock_rotation_z(),
+        // LockedAxes::new().lock_rotation_x().lock_rotation_z(),
         CollisionLayers::new(
             [CollisionLayer::Santa],
             [

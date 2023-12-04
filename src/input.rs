@@ -4,13 +4,21 @@ use bevy::input::keyboard::KeyboardInput;
 use bevy::prelude::{Component, Entity, EventReader, KeyCode, Query, With};
 use bevy::reflect::Reflect;
 use bevy::utils::HashSet;
+use bevy_xpbd_3d::components::{AngularVelocity, LinearVelocity, Rotation};
+use bevy_xpbd_3d::math::Vector3;
 
 pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_systems(Update, input_control);
+            .add_systems(
+                Update, (
+                    input_control,
+                    kinematic_movement,
+                    dynamic_movement,
+                )
+            );
     }
 }
 
@@ -181,5 +189,62 @@ pub fn input_control(
             if controller.directions.is_empty() && controller.rotations.is_empty() {
             }
         }
+    }
+}
+
+pub fn dynamic_movement(
+    mut query: Query<(&mut LinearVelocity, &mut AngularVelocity, &Rotation, &Controller), With<DynamicMovement>>,
+) {
+    for (mut linear_velocity, mut angular_velocity, rotation, controller) in query.iter_mut() {
+        let mut force = Vector3::ZERO;
+        let mut torque = Vector3::ZERO;
+
+        if controller.directions.contains(&ControlDirection::Forward) {
+            force.z = -1.0;
+        }
+        if controller.directions.contains(&ControlDirection::Backward) {
+            force.z = 1.0;
+        }
+        if controller.rotations.contains(&ControlRotation::Left) {
+            torque.y = 1.0;
+        }
+        if controller.rotations.contains(&ControlRotation::Right) {
+            torque.y = -1.0;
+        }
+        force = rotation.mul_vec3(force) * controller.speed;
+        linear_velocity.x = force.x;
+        linear_velocity.z = force.z;
+        angular_velocity.0 = torque * controller.turn_speed;
+    }
+}
+
+
+pub fn kinematic_movement(
+    mut query: Query<(&mut LinearVelocity, &mut AngularVelocity, &Rotation, &Controller), With<KinematicMovement>>,
+) {
+    let force_factor =1.0;
+    for (
+        mut linear_velocity,
+        mut angular_velocity,
+        rotation,
+        controller) in query.iter_mut() {
+        let mut force = Vector3::ZERO;
+        let mut torque = Vector3::ZERO;
+
+        if controller.directions.contains(&ControlDirection::Forward) {
+            force.z = -1.0;
+        }
+        if controller.directions.contains(&ControlDirection::Backward) {
+            force.z = 1.0;
+        }
+        if controller.rotations.contains(&ControlRotation::Left) {
+            torque.y = -1.0;
+        }
+        if controller.rotations.contains(&ControlRotation::Right) {
+            torque.y = 1.0;
+        }
+        force = rotation.mul_vec3(force);
+        linear_velocity.0 = force * force_factor;
+        angular_velocity.0 = torque * force_factor;
     }
 }

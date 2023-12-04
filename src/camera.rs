@@ -1,12 +1,14 @@
-use bevy::app::{App, Plugin, Startup, Update};
+use bevy::app::{App, Plugin, PostUpdate, Startup, Update};
 use bevy::core::Name;
 use bevy::math::{Quat, Rect, Vec2, Vec3};
-use bevy::prelude::{Camera3dBundle, Commands, Component, default, OrthographicProjection, Query, Reflect, Transform, With};
+use bevy::prelude::{Camera3dBundle, Commands, Component, default, IntoSystemConfigs, OrthographicProjection, Query, Reflect, Transform, With};
 use bevy::prelude::Projection::Orthographic;
 use bevy::render::camera::ScalingMode;
+use bevy::transform::TransformSystem;
 use bevy_atmosphere::plugin::{AtmosphereCamera, AtmospherePlugin};
 use bevy_xpbd_3d::components::Position;
 use bevy_xpbd_3d::math::{PI, Vector3};
+use bevy_xpbd_3d::PhysicsSet;
 use crate::santa::Santa;
 
 pub struct CameraPlugin;
@@ -19,15 +21,24 @@ pub struct CameraOffset(pub Vec3);
 
 #[derive(Component)]
 pub struct FollowCamera {
-    pub offset: Vector3
+    pub offset: Vector3,
 }
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_systems(Startup, spawn_camera)
-            .add_systems(Update, camera_follow)
-        ;
+            .add_systems(
+                Startup, (
+                    spawn_camera,
+                ))
+            .add_systems(
+                PostUpdate,
+                (
+                    camera_follow
+                        .after(PhysicsSet::Sync)
+                        .before(TransformSystem::TransformPropagate),
+                ),
+            );
     }
 }
 
