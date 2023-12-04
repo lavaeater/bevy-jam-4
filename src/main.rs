@@ -1,14 +1,19 @@
+mod santa;
+mod environment;
+mod camera;
+mod input;
+
 use bevy::{prelude::*};
-use bevy_atmosphere::plugin::{AtmosphereCamera, AtmospherePlugin};
+use crate::camera::CameraPlugin;
+use crate::input::InputPlugin;
+use crate::santa::SantaPlugin;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(AtmospherePlugin)
-        .add_systems(Startup, setup)
+        .add_plugins(CameraPlugin)
+        .add_plugins(SantaPlugin)
+        .add_plugins(InputPlugin)
         .run();
 }
 
-fn setup(mut commands: Commands) {
-    commands.spawn((Camera3dBundle::default(), AtmosphereCamera::default()));
-}
