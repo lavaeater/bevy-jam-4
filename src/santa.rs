@@ -6,7 +6,7 @@ use bevy::prelude::{Commands, Component, ResMut, Transform};
 use bevy::scene::SceneBundle;
 use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, LockedAxes, RigidBody};
 use bevy_xpbd_3d::prelude::PhysicsLayer;
-use crate::input::{Controller, DynamicMovement, KeyboardController};
+use crate::input::{Controller, DynamicMovement, KeyboardController, KinematicMovement};
 
 pub struct SantaPlugin;
 
@@ -40,7 +40,7 @@ fn spawn_santa(
     mut commands: Commands,
     mut asset_server: ResMut<AssetServer>
 ) {
-    let player = commands.spawn((
+    commands.spawn((
         Name::from("Saint Nicholas"),
         Santa {},
         // FixSceneTransform::new(
@@ -52,7 +52,7 @@ fn spawn_santa(
         // ),
         KeyboardController {},
         Controller::new(3.0, 3.0, 60.0),
-        DynamicMovement {},
+        KinematicMovement {},
         SceneBundle {
             scene: asset_server.load("models/santa_claus.glb#Scene0"),
             transform: Transform::from_xyz(0.0,0.0,0.0),
@@ -61,7 +61,7 @@ fn spawn_santa(
         Friction::from(0.0),
         AngularDamping(1.0),
         LinearDamping(0.9),
-        RigidBody::Dynamic,
+        RigidBody::Kinematic,
         LockedAxes::new().lock_rotation_x().lock_rotation_z(),
         CollisionLayers::new(
             [CollisionLayer::Player],
@@ -77,5 +77,5 @@ fn spawn_santa(
     )).with_children(|children|
         { // Spawn the child colliders positioned relative to the rigid body
             children.spawn((Collider::cuboid(2.0, 2.0, 4.0), Transform::from_xyz(0.0, 0.0, 0.0)));
-        }).id();
+        });
 }

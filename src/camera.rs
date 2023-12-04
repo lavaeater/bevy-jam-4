@@ -1,4 +1,4 @@
-use bevy::app::{App, Plugin, Startup};
+use bevy::app::{App, Plugin, Startup, Update};
 use bevy::core::Name;
 use bevy::math::{Quat, Rect, Vec2, Vec3};
 use bevy::prelude::{Camera3dBundle, Commands, Component, default, OrthographicProjection, Query, Reflect, Transform, With};
@@ -26,7 +26,9 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(AtmospherePlugin)
-            .add_systems(Startup, spawn_camera);
+            .add_systems(Startup, spawn_camera)
+            .add_systems(Update, camera_follow)
+        ;
     }
 }
 
