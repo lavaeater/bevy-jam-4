@@ -72,7 +72,7 @@ fn spawn_santa(
         ),
         KeyboardController {},
         Controller::new(3.0, 3.0, 60.0),
-        DynamicMovement {},
+        KinematicMovement {},
         SceneBundle {
             scene: asset_server.load("models/santa_claus-modified.glb#Scene0"),
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
@@ -81,7 +81,7 @@ fn spawn_santa(
         Friction::from(0.0),
         AngularDamping(1.0),
         LinearDamping(0.9),
-        RigidBody::Dynamic,
+        RigidBody::Kinematic,
         // LockedAxes::new().lock_rotation_x().lock_rotation_z(),
         CollisionLayers::new(
             [CollisionLayer::Santa],
