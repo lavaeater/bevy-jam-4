@@ -5,6 +5,8 @@ use bevy::hierarchy::DespawnRecursiveExt;
 use bevy::math::{EulerRot, Quat, Vec3};
 use bevy::pbr::{PbrBundle, StandardMaterial};
 use bevy::prelude::{Color, Commands, Component, Entity, Fixed, Mesh, Query, Res, ResMut, Resource, shape, Time, With};
+use bevy::utils::default;
+use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{Collider, LinearDamping, Position, RigidBody};
 use bevy_xpbd_3d::prelude::{ExternalForce, MassPropertiesBundle};
 use crate::input::CoolDown;
@@ -16,7 +18,7 @@ impl Plugin for SnowPlugin {
     fn build(&self, app: &mut App) {
         app
             .insert_resource(Time::<Fixed>::from_seconds(0.05))
-            .insert_resource(Wind(Vec3::new(0.0, 0.1, 0.01)))
+            .insert_resource(Wind(Vec3::new(0.0, 0.2, 0.01)))
             .add_systems(
                 Update,
                 (
@@ -27,7 +29,7 @@ impl Plugin for SnowPlugin {
             .add_systems(
                 FixedUpdate, (
                     spawn_snow,
-                    change_wind,
+                    // change_wind,
                 ));
     }
 }
@@ -73,13 +75,15 @@ fn kill_snow(
     }
 }
 
+pub const SNOW_DRAG_FACTOR: f32 = 0.02;
+
 fn snow_drag(
     mut snow_query: Query<&mut ExternalForce, With<Snow>>,
     wind: Res<Wind>,
     time: Res<Time>
 ) {
     for mut force in snow_query.iter_mut() {
-        force.set_force(wind.0 * time.delta_seconds());
+        force.set_force(wind.0 * time.delta_seconds() * SNOW_DRAG_FACTOR);
     }
 }
 
@@ -88,8 +92,16 @@ fn spawn_snow(
     where_is_santa: Query<&Position, With<Santa>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut global_rng: ResMut<GlobalRng>
 ) {
     if let Ok(santa_position) = where_is_santa.get_single() {
+        let x = global_rng.f32_normalized() * 10.0;
+        let z = -global_rng.f32() * 10.0;
+        let snow_position = santa_position.0 + Vec3::new(x,5.0,z);
+
+
+
+
         let material = materials.add(StandardMaterial {
             base_color: Color::WHITE,
             ..Default::default()
@@ -107,14 +119,14 @@ fn spawn_snow(
         commands.spawn(
             (
                 Name::from("SnowFlake"),
-                Snow::new(3.0),
+                Snow::new(15.0),
                 PbrBundle {
                     mesh: snow_mesh,
                     material,
                     ..Default::default()
                 },
-                ExternalForce::ZERO,
-                Position::new(santa_position.0 + Vec3::new(-2.0,0.0,0.0)),
+                ExternalForce::new(Vec3::ZERO),
+                Position::new(snow_position),
                 LinearDamping(0.9),
                 RigidBody::Dynamic,
                 MassPropertiesBundle::new_computed(&Collider::ball(radius), density),

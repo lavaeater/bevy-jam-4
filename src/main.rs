@@ -5,6 +5,7 @@ mod input;
 mod snow_plugin;
 
 use bevy::{prelude::*};
+use bevy_turborand::prelude::RngPlugin;
 use bevy_xpbd_3d::plugins::{PhysicsDebugPlugin, PhysicsPlugins};
 use crate::camera::CameraPlugin;
 use crate::environment::EnvironmentPlugin;
@@ -30,6 +31,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(PhysicsPlugins::default())
+            .add_plugins(RngPlugin::default())
             // .add_plugins(PhysicsDebugPlugin::default())
         ;
     }
