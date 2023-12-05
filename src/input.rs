@@ -222,7 +222,6 @@ pub fn dynamic_movement(
 pub fn kinematic_movement(
     mut query: Query<(&mut LinearVelocity, &mut AngularVelocity, &Rotation, &Controller), With<KinematicMovement>>,
 ) {
-    let force_factor =1.0;
     for (
         mut linear_velocity,
         mut angular_velocity,
@@ -232,10 +231,10 @@ pub fn kinematic_movement(
         let mut torque = Vector3::ZERO;
 
         if controller.directions.contains(&ControlDirection::Forward) {
-            force.z = -1.0;
+            force.z = 1.0;
         }
         if controller.directions.contains(&ControlDirection::Backward) {
-            force.z = 1.0;
+            force.z = -1.0;
         }
         if controller.rotations.contains(&ControlRotation::Left) {
             torque.y = -1.0;
@@ -244,7 +243,7 @@ pub fn kinematic_movement(
             torque.y = 1.0;
         }
         force = rotation.mul_vec3(force);
-        linear_velocity.0 = force * force_factor;
-        angular_velocity.0 = torque * force_factor;
+        linear_velocity.0 = force * controller.speed;
+        angular_velocity.0 = torque * controller.turn_speed;
     }
 }
