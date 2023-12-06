@@ -1,5 +1,4 @@
-use bevy::app::{App, Plugin, Startup, Update};
-use bevy::asset::AssetServer;
+use bevy::app::{App, Plugin, PostStartup, Update};
 use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{EulerRot, Quat, Vec3};
@@ -7,6 +6,7 @@ use bevy::prelude::{Commands, Component, Entity, Query, Res, Transform, Visibili
 use bevy::scene::SceneBundle;
 use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
 use bevy_xpbd_3d::prelude::PhysicsLayer;
+use crate::assets::SantasAssets;
 use crate::input::{Controller, KeyboardController, KinematicMovement};
 
 pub struct SantaPlugin;
@@ -15,7 +15,7 @@ impl Plugin for SantaPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(
-                Startup, (
+                PostStartup, (
                     spawn_santa,
                 ))
             .add_systems(
@@ -33,7 +33,8 @@ pub enum CollisionLayer {
     Santa,
     Ground,
     Solid,
-    Sensor,
+    Snow,
+    Nothing,
 }
 
 #[derive(Component)]
@@ -58,7 +59,7 @@ pub struct Santa;
 
 fn spawn_santa(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    santas_assets: Res<SantasAssets>
 ) {
     commands.spawn((
         Name::from("Saint Nicholas"),
@@ -71,10 +72,10 @@ fn spawn_santa(
             Vec3::new(1.0, 1.0, 1.0),
         ),
         KeyboardController {},
-        Controller::new(3.0, 3.0, 60.0),
+        Controller::new(30.0, 1.0, 60.0),
         KinematicMovement {},
         SceneBundle {
-            scene: asset_server.load("models/santa_claus-modified.glb#Scene0"),
+            scene: santas_assets.santa.clone(),
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
             ..Default::default()
         },
