@@ -4,6 +4,7 @@ mod camera;
 mod input;
 mod snow_plugin;
 mod assets;
+mod sam_site;
 
 use bevy::{prelude::*};
 use bevy_turborand::prelude::RngPlugin;
