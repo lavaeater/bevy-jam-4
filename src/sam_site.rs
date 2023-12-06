@@ -15,7 +15,7 @@ pub struct SamSitePlugin;
 impl Plugin for SamSitePlugin {
     fn build(&self, app: &mut App) {
         app
-            .insert_resource(SamSiteParams::new(1.0))
+            .insert_resource(SamSiteParams::new(10.0))
             .add_systems(Update,
                          (
                              spawn_sam_sites,
@@ -54,6 +54,18 @@ impl CoolDown for SamSiteParams {
 #[derive(Component)]
 pub struct SamSite {
     pub rate_of_fire_per_minute: f32,
+    pub time_left: f32,
+}
+
+impl CoolDown for SamSite {
+    fn cool_down(&mut self, delta: f32) -> bool {
+        self.time_left -= delta;
+        if self.time_left <= 0.0 {
+            self.time_left = 60.0 / self.rate_of_fire_per_minute;
+            return true;
+        }
+        false
+    }
 }
 
 fn spawn_sam_sites(
@@ -66,7 +78,7 @@ fn spawn_sam_sites(
     if sam_site_params.cool_down(time.delta_seconds()) {
         if let Ok(santas_transform) = where_is_santa.get_single() {
 
-            let sam_site_position = santas_transform.translation() + -santas_transform.forward() * 100.0 + vec3(0.0, -50.0, 0.0);
+            let sam_site_position = santas_transform.translation() + -santas_transform.forward() * 1000.0 + vec3(0.0, -50.0, 0.0);
 
             commands
                 .spawn((
