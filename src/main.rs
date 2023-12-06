@@ -13,6 +13,7 @@ use crate::assets::AssetsPlugin;
 use crate::camera::CameraPlugin;
 use crate::environment::EnvironmentPlugin;
 use crate::input::InputPlugin;
+use crate::sam_site::SamSitePlugin;
 use crate::santa::SantaPlugin;
 use crate::snow_plugin::SnowPlugin;
 
@@ -36,6 +37,7 @@ impl Plugin for GamePlugin {
             .add_plugins(CameraPlugin)
             .add_plugins(SantaPlugin)
             .add_plugins(InputPlugin)
+            .add_plugins(SamSitePlugin)
             // .add_plugins(PhysicsDebugPlugin::default())
         ;
     }

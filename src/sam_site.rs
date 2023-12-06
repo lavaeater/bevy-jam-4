@@ -1,7 +1,7 @@
 use bevy::app::{App, Plugin, PostStartup, Update};
 use bevy::core::Name;
 use bevy::hierarchy::BuildChildren;
-use bevy::math::{EulerRot, Quat, Vec3};
+use bevy::math::{EulerRot, Quat, Vec3, vec3};
 use bevy::prelude::{Commands, Component, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
 use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
@@ -9,9 +9,9 @@ use crate::assets::SantasAssets;
 use crate::input::{Controller, CoolDown, KeyboardController, KinematicMovement};
 use crate::santa::{CollisionLayer, FixSceneTransform, Santa};
 
-pub struct SamSite;
+pub struct SamSitePlugin;
 
-impl Plugin for SamSite {
+impl Plugin for SamSitePlugin {
     fn build(&self, app: &mut App) {
         app
             .insert_resource(SamSiteParams::new(1.0))
@@ -52,7 +52,7 @@ impl CoolDown for SamSiteParams {
 
 #[derive(Component)]
 pub struct SamSite {
-    pub rate_of_fire_per_minute: f32
+    pub rate_of_fire_per_minute: f32,
 }
 
 fn spawn_sam_sites(
@@ -64,39 +64,39 @@ fn spawn_sam_sites(
 ) {
     if sam_site_params.cool_down(time.delta_seconds()) {
         if let Ok(santas_transform) = where_is_santa.get_single() {
-            let forward = santas_transform.forward() .rotation.forward();
-        }
 
-        commands
-            .spawn((
-                Name::from("SAM Site"),
-                // FixSceneTransform::new(
-                //     Vec3::new(0.0, -1.0, 0.0),
-                //     Quat::from_euler(
-                //         EulerRot::YXZ,
-                //         0.0, 0.0, 0.0),
-                //     Vec3::new(1.0, 1.0, 1.0),
-                // ),
-                SceneBundle {
-                    scene: santas_assets.turret.clone(),
-                    transform: Transform::from_xyz(0.0, 0.0, 0.0),
-                    ..Default::default()
-                },
-                Friction::from(0.0),
-                AngularDamping(1.0),
-                LinearDamping(0.9),
-                RigidBody::Kinematic,
-                // LockedAxes::new().lock_rotation_x().lock_rotation_z(),
-                CollisionLayers::new(
-                    [CollisionLayer::Santa],
-                    [
-                        CollisionLayer::Solid,
-                        CollisionLayer::Ground,
-                    ]),
-            )).with_children(|children|
-            { // Spawn the child colliders positioned relative to the rigid body
-                children.spawn((Collider::cuboid(1.2, 1.5, 2.0), Transform::from_xyz(0.0, 0.0, 0.0)));
-            })
-        ;
+            let sam_site_position = santas_transform.translation() + santas_transform.forward() * 10.0 + vec3(0.0, -2.0, 0.0);
+
+            commands
+                .spawn((
+                    Name::from("SAM Site"),
+                    // FixSceneTransform::new(
+                    //     Vec3::new(0.0, -1.0, 0.0),
+                    //     Quat::from_euler(
+                    //         EulerRot::YXZ,
+                    //         0.0, 0.0, 0.0),
+                    //     Vec3::new(1.0, 1.0, 1.0),
+                    // ),
+                    SceneBundle {
+                        scene: santas_assets.turret.clone(),
+                        transform: Transform::from_xyz(sam_site_position.x, sam_site_position.y, sam_site_position.z),
+                        ..Default::default()
+                    },
+                    RigidBody::Static,
+                    CollisionLayers::new(
+                        [CollisionLayer::Solid],
+                        [
+                            CollisionLayer::Santa,
+                            CollisionLayer::Missile,
+                        ]),
+                )).with_children(|children|
+                { // Spawn the child colliders positioned relative to the rigid body
+                    children.spawn((
+                        Collider::cuboid(1.0, 1.0, 1.0),
+                        Transform::from_xyz(0.0, 0.0, 0.0),
+                    ));
+                })
+            ;
+        }
     }
 }

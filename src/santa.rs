@@ -35,6 +35,7 @@ pub enum CollisionLayer {
     Solid,
     Snow,
     Nothing,
+    Missile,
 }
 
 #[derive(Component)]
