@@ -19,6 +19,7 @@ impl Plugin for AssetsPlugin {
 #[derive(Resource, Default)]
 pub struct SantasAssets {
     pub santa: Handle<Scene>,
+    pub turret: Handle<Scene>,
     pub snowball_mesh: Handle<Mesh>,
     pub snowball_material: Handle<StandardMaterial>,
 }
@@ -32,6 +33,7 @@ pub fn spawn_assets(
     let radius = 0.05;
     *santas_assets = SantasAssets {
         santa: asset_server.load("models/santa_claus-modified.glb#Scene0"),
+        turret: asset_server.load("models/sci-fi_turret.glb#Scene0"),
         snowball_mesh: meshes.add(
             shape::UVSphere {
                 radius,
