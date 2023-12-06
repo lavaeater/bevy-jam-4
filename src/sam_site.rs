@@ -1,8 +1,13 @@
 use bevy::app::{App, Plugin, PostStartup, Update};
-use bevy::prelude::{Commands, Res, ResMut, Resource};
+use bevy::core::Name;
+use bevy::hierarchy::BuildChildren;
+use bevy::math::{EulerRot, Quat, Vec3};
+use bevy::prelude::{Commands, Component, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
+use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
 use crate::assets::SantasAssets;
-use crate::input::CoolDown;
+use crate::input::{Controller, CoolDown, KeyboardController, KinematicMovement};
+use crate::santa::{CollisionLayer, FixSceneTransform, Santa};
 
 pub struct SamSite;
 
@@ -18,7 +23,6 @@ impl Plugin for SamSite {
         ;
     }
 }
-
 
 #[derive(Resource)]
 pub struct SamSiteParams {
@@ -46,19 +50,53 @@ impl CoolDown for SamSiteParams {
     }
 }
 
+#[derive(Component)]
+pub struct SamSite {
+    pub rate_of_fire_per_minute: f32
+}
+
 fn spawn_sam_sites(
     mut sam_site_params: ResMut<SamSiteParams>,
     santas_assets: Res<SantasAssets>,
     time: Res<Time>,
     mut commands: Commands,
+    where_is_santa: Query<&GlobalTransform, With<Santa>>,
 ) {
     if sam_site_params.cool_down(time.delta_seconds()) {
+        if let Ok(santas_transform) = where_is_santa.get_single() {
+            let forward = santas_transform.forward() .rotation.forward();
+        }
+
         commands
-            .spawn(santas_assets.turret.clone())
-            .insert(SamSite)
-            .insert(santas_assets.snowball_mesh.clone())
-            .insert(santas_assets.snowball_material.clone())
-            .insert(sam_site_params.clone())
+            .spawn((
+                Name::from("SAM Site"),
+                // FixSceneTransform::new(
+                //     Vec3::new(0.0, -1.0, 0.0),
+                //     Quat::from_euler(
+                //         EulerRot::YXZ,
+                //         0.0, 0.0, 0.0),
+                //     Vec3::new(1.0, 1.0, 1.0),
+                // ),
+                SceneBundle {
+                    scene: santas_assets.turret.clone(),
+                    transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                    ..Default::default()
+                },
+                Friction::from(0.0),
+                AngularDamping(1.0),
+                LinearDamping(0.9),
+                RigidBody::Kinematic,
+                // LockedAxes::new().lock_rotation_x().lock_rotation_z(),
+                CollisionLayers::new(
+                    [CollisionLayer::Santa],
+                    [
+                        CollisionLayer::Solid,
+                        CollisionLayer::Ground,
+                    ]),
+            )).with_children(|children|
+            { // Spawn the child colliders positioned relative to the rigid body
+                children.spawn((Collider::cuboid(1.2, 1.5, 2.0), Transform::from_xyz(0.0, 0.0, 0.0)));
+            })
         ;
     }
 }
