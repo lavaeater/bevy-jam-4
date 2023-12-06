@@ -1,7 +1,7 @@
 use bevy::app::{App, Plugin, Update};
 use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
-use bevy::prelude::{Component, Entity, EventReader, KeyCode, Query, With};
+use bevy::prelude::{Component, EventReader, KeyCode, Query, With};
 use bevy::reflect::Reflect;
 use bevy::utils::HashSet;
 use bevy_xpbd_3d::components::{AngularVelocity, LinearVelocity, Rotation};
@@ -17,7 +17,7 @@ impl Plugin for InputPlugin {
                     input_control,
                     kinematic_movement,
                     dynamic_movement,
-                )
+                ),
             );
     }
 }
@@ -34,14 +34,14 @@ pub struct KeyboardController {}
 pub enum ControlCommands {
     FirePrimary,
     Jump,
-    Build
+    Build,
 }
 
 
 #[derive(Hash, PartialEq, Eq, Copy, Clone, Debug, Reflect)]
 pub enum ControlRotation {
     Left,
-    Right
+    Right,
 }
 
 #[derive(Hash, PartialEq, Eq, Copy, Clone, Debug, Reflect)]
@@ -49,7 +49,7 @@ pub enum ControlDirection {
     Forward,
     Backward,
     StrafeLeft,
-    StrafeRight
+    StrafeRight,
 }
 
 pub trait Opposite {
@@ -81,17 +81,17 @@ pub struct Controller {
     pub triggers: HashSet<ControlCommands>,
     pub rotations: HashSet<ControlRotation>,
     pub directions: HashSet<ControlDirection>,
-    pub has_thrown:bool,
+    pub has_thrown: bool,
     pub speed: f32,
     pub max_speed: f32,
     pub turn_speed: f32,
     pub max_turn_speed: f32,
     pub rate_of_fire_per_minute: f32,
-    pub fire_cool_down: f32
+    pub fire_cool_down: f32,
 }
 
 impl Controller {
-    pub fn new(speed: f32, turn_speed: f32, rate_of_fire_per_minute: f32, ) -> Self {
+    pub fn new(speed: f32, turn_speed: f32, rate_of_fire_per_minute: f32) -> Self {
         Self {
             triggers: HashSet::default(),
             rotations: HashSet::default(),
@@ -102,7 +102,7 @@ impl Controller {
             turn_speed,
             max_turn_speed: turn_speed,
             rate_of_fire_per_minute,
-            fire_cool_down: 0.0
+            fire_cool_down: 0.0,
         }
     }
 }
@@ -128,21 +128,19 @@ pub struct KinematicMovement {}
 
 pub fn input_control(
     mut key_evr: EventReader<KeyboardInput>,
-    mut query: Query<(Entity, &mut Controller), With<KeyboardController>>,
+    mut query: Query<&mut Controller, With<KeyboardController>>,
 ) {
-    if let Ok((entity, mut controller)) = query.get_single_mut() {
+    if let Ok(mut controller) = query.get_single_mut() {
         for ev in key_evr.read() {
             match ev.state {
                 ButtonState::Pressed => match ev.key_code {
                     Some(KeyCode::B) => {
-                        if controller.triggers.contains(&ControlCommands::Build) {
-                        } else {
+                        if controller.triggers.contains(&ControlCommands::Build) {} else {
                             controller.triggers.insert(ControlCommands::Build);
                         }
                     }
                     Some(KeyCode::Escape) => {
-                        if controller.triggers.contains(&ControlCommands::Build) {
-                        }
+                        if controller.triggers.contains(&ControlCommands::Build) {}
                     }
                     Some(KeyCode::A) => {
                         controller.rotations.insert(ControlRotation::Left);
@@ -178,16 +176,12 @@ pub fn input_control(
                     Some(KeyCode::S) => {
                         controller.directions.remove(&ControlDirection::Backward);
                     }
-                    Some(KeyCode::Left) => {
-
-                    }
-                    Some(KeyCode::Right) => {
-                    }
+                    Some(KeyCode::Left) => {}
+                    Some(KeyCode::Right) => {}
                     _ => {}
                 }
             }
-            if controller.directions.is_empty() && controller.rotations.is_empty() {
-            }
+            if controller.directions.is_empty() && controller.rotations.is_empty() {}
         }
     }
 }
@@ -237,10 +231,10 @@ pub fn kinematic_movement(
             force.z = -1.0;
         }
         if controller.rotations.contains(&ControlRotation::Left) {
-            torque.y = -1.0;
+            torque.y = 1.0;
         }
         if controller.rotations.contains(&ControlRotation::Right) {
-            torque.y = 1.0;
+            torque.y = -1.0;
         }
         force = rotation.mul_vec3(force);
         linear_velocity.0 = force * controller.speed;

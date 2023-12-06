@@ -3,11 +3,11 @@ use bevy::asset::AssetServer;
 use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{EulerRot, Quat, Vec3};
-use bevy::prelude::{Commands, Component, Entity, Query, Res, ResMut, Transform, Visibility, With};
+use bevy::prelude::{Commands, Component, Entity, Query, Res, Transform, Visibility, With};
 use bevy::scene::SceneBundle;
-use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, LockedAxes, RigidBody};
+use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
 use bevy_xpbd_3d::prelude::PhysicsLayer;
-use crate::input::{Controller, DynamicMovement, KeyboardController, KinematicMovement};
+use crate::input::{Controller, KeyboardController, KinematicMovement};
 
 pub struct SantaPlugin;
 

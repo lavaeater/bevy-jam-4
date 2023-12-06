@@ -1,13 +1,9 @@
-use bevy::app::{App, Plugin, PostUpdate, Startup, Update};
-use bevy::core::Name;
-use bevy::math::{Quat, Rect, Vec2, Vec3};
-use bevy::prelude::{Camera3dBundle, Commands, Component, default, IntoSystemConfigs, OrthographicProjection, Query, Reflect, Transform, With};
-use bevy::prelude::Projection::Orthographic;
-use bevy::render::camera::ScalingMode;
+use bevy::app::{App, Plugin, PostUpdate, Startup};
+use bevy::math::{Vec3};
+use bevy::prelude::{Camera3dBundle, Commands, Component, IntoSystemConfigs, Query, Reflect, Transform, With, Without};
 use bevy::transform::TransformSystem;
-use bevy_atmosphere::plugin::{AtmosphereCamera, AtmospherePlugin};
-use bevy_xpbd_3d::components::Position;
-use bevy_xpbd_3d::math::{PI, Vector3};
+use bevy_atmosphere::plugin::{AtmosphereCamera};
+use bevy_xpbd_3d::math::{Vector3};
 use bevy_xpbd_3d::PhysicsSet;
 use crate::santa::Santa;
 
@@ -47,41 +43,22 @@ fn spawn_camera(mut commands: Commands) {
         Camera3dBundle::default(),
         AtmosphereCamera::default(),
         GameCamera {},
-        CameraOffset(Vec3::new(0.0, 2.5, -10.0)),
-    ));
-}
-
-pub fn spawn_orthographic_camera(mut commands: Commands) {
-    commands.spawn((
-        Name::from("Camera"),
-        CameraOffset(Vec3::new(2.0, 1.5, 2.0)),
-        Camera3dBundle {
-            projection: Orthographic(OrthographicProjection {
-                scale: 2.0,
-                near: -1000.0,
-                far: 1000.0,
-                viewport_origin: Vec2::new(0.5, 0.5),
-                scaling_mode: ScalingMode::FixedVertical(2.0),
-                area: Rect::new(-1.0, -1.0, 1.0, 1.0),
-            }),
-            transform: Transform {
-                rotation: Quat::from_rotation_x(-PI / 4.),
-                ..default()
-            },
-            ..default()
-        },
-        GameCamera {},
+        CameraOffset(Vec3::new(0.0, 5.0, -20.0)),
     ));
 }
 
 pub fn camera_follow(
-    mut camera_query: Query<(&mut Transform, &CameraOffset), With<GameCamera>>,
-    player_position: Query<&Position, With<Santa>>,
+    mut camera_query: Query<(&mut Transform, &CameraOffset), (With<GameCamera>, Without<Santa>)>,
+    player_position: Query<&Transform, (With<Santa>, Without<GameCamera>)>,
 ) {
     for (mut camera_transform, offset) in camera_query.iter_mut() {
         for player_position in player_position.iter() {
-            camera_transform.translation = camera_transform.translation.lerp(player_position.0 + offset.0, 0.9);
-            camera_transform.look_at(player_position.0, Vec3::Y);
+            //rotate the offset so it is BEHIND the player
+            let mut actual_offset = offset.0;
+            actual_offset = player_position.rotation.mul_vec3(actual_offset);
+
+            camera_transform.translation = camera_transform.translation.lerp(player_position.translation + actual_offset, 0.9);
+            camera_transform.look_at(player_position.translation, Vec3::Y);
         }
     }
 }
