@@ -7,7 +7,7 @@ mod assets;
 
 use bevy::{prelude::*};
 use bevy_turborand::prelude::RngPlugin;
-use bevy_xpbd_3d::plugins::{PhysicsDebugPlugin, PhysicsPlugins};
+use bevy_xpbd_3d::plugins::{PhysicsPlugins};
 use crate::assets::AssetsPlugin;
 use crate::camera::CameraPlugin;
 use crate::environment::EnvironmentPlugin;
