@@ -1,9 +1,11 @@
 use bevy::app::{App, Plugin, Startup};
 use bevy::core::Name;
-use bevy::math::{EulerRot, Quat};
+use bevy::math::{EulerRot, Quat, Vec3};
 use bevy::pbr::{CascadeShadowConfigBuilder, DirectionalLight, DirectionalLightBundle};
-use bevy::prelude::{Commands, default, Transform};
+use bevy::prelude::{Color, Commands, default, Transform};
+use bevy_atmosphere::model::AtmosphereModel;
 use bevy_atmosphere::plugin::AtmospherePlugin;
+use bevy_atmosphere::prelude::{Gradient, Nishita};
 
 pub struct EnvironmentPlugin;
 
@@ -11,6 +13,9 @@ impl Plugin for EnvironmentPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(AtmospherePlugin)
+            .insert_resource(AtmosphereModel::new(Nishita {
+                sun_position: Vec3::new(0.0, -0.1, 1.0),
+                ..default() }))
             .add_systems(Startup, (
                 spawn_lights,
             ))
