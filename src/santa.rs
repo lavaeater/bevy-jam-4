@@ -73,7 +73,7 @@ fn spawn_santa(
             Vec3::new(1.0, 1.0, 1.0),
         ),
         KeyboardController {},
-        Controller::new(30.0, 1.0, 60.0),
+        Controller::new(300.0, 1.0, 60.0),
         KinematicMovement {},
         SceneBundle {
             scene: santas_assets.santa.clone(),

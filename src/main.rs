@@ -2,7 +2,7 @@ mod santa;
 mod environment;
 mod camera;
 mod input;
-mod snow_plugin;
+mod snow;
 mod assets;
 mod sam_site;
 
@@ -15,7 +15,7 @@ use crate::environment::EnvironmentPlugin;
 use crate::input::InputPlugin;
 use crate::sam_site::SamSitePlugin;
 use crate::santa::SantaPlugin;
-use crate::snow_plugin::SnowPlugin;
+use crate::snow::SnowPlugin;
 
 fn main() {
     App::new()

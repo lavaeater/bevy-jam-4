@@ -3,6 +3,7 @@ use bevy::asset::{Assets, AssetServer, Handle};
 use bevy::pbr::StandardMaterial;
 use bevy::prelude::{Color, Mesh, ResMut, Resource, shape};
 use bevy::scene::Scene;
+use bevy::utils::default;
 
 pub struct AssetsPlugin;
 
@@ -19,7 +20,8 @@ impl Plugin for AssetsPlugin {
 #[derive(Resource, Default)]
 pub struct SantasAssets {
     pub santa: Handle<Scene>,
-    pub turret: Handle<Scene>,
+    pub turret: Handle<Mesh>,
+    pub turret_material: Handle<StandardMaterial>,
     pub snowball_mesh: Handle<Mesh>,
     pub snowball_material: Handle<StandardMaterial>,
 }
@@ -33,7 +35,14 @@ pub fn spawn_assets(
     let radius = 0.05;
     *santas_assets = SantasAssets {
         santa: asset_server.load("models/santa_claus-modified.glb#Scene0"),
-        turret: asset_server.load("models/sci-fi_turret.glb#Scene0"),
+        turret: meshes.add(
+            shape::Cube {
+                size: 5.0,
+            }.into()),
+        turret_material: materials.add(StandardMaterial {
+            base_color: Color::GREEN,
+            ..default()
+        }),
         snowball_mesh: meshes.add(
             shape::UVSphere {
                 radius,

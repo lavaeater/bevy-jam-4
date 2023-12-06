@@ -1,13 +1,14 @@
-use bevy::app::{App, Plugin, PostStartup, Update};
+use bevy::app::{App, Plugin, Update};
 use bevy::core::Name;
 use bevy::hierarchy::BuildChildren;
-use bevy::math::{EulerRot, Quat, Vec3, vec3};
+use bevy::math::{vec3};
+use bevy::pbr::PbrBundle;
 use bevy::prelude::{Commands, Component, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
-use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
+use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
 use crate::assets::SantasAssets;
-use crate::input::{Controller, CoolDown, KeyboardController, KinematicMovement};
-use crate::santa::{CollisionLayer, FixSceneTransform, Santa};
+use crate::input::{CoolDown};
+use crate::santa::{CollisionLayer, Santa};
 
 pub struct SamSitePlugin;
 
@@ -65,7 +66,7 @@ fn spawn_sam_sites(
     if sam_site_params.cool_down(time.delta_seconds()) {
         if let Ok(santas_transform) = where_is_santa.get_single() {
 
-            let sam_site_position = santas_transform.translation() + santas_transform.forward() * 10.0 + vec3(0.0, -2.0, 0.0);
+            let sam_site_position = santas_transform.translation() + -santas_transform.forward() * 100.0 + vec3(0.0, -50.0, 0.0);
 
             commands
                 .spawn((
@@ -77,8 +78,9 @@ fn spawn_sam_sites(
                     //         0.0, 0.0, 0.0),
                     //     Vec3::new(1.0, 1.0, 1.0),
                     // ),
-                    SceneBundle {
-                        scene: santas_assets.turret.clone(),
+                    PbrBundle {
+                        mesh: santas_assets.turret.clone(),
+                        material: santas_assets.turret_material.clone(),
                         transform: Transform::from_xyz(sam_site_position.x, sam_site_position.y, sam_site_position.z),
                         ..Default::default()
                     },
