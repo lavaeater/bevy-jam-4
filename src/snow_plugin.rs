@@ -1,54 +1,38 @@
 use bevy::app::{App, FixedUpdate, Plugin, Update};
-use bevy::asset::{Assets};
 use bevy::core::Name;
 use bevy::hierarchy::DespawnRecursiveExt;
 use bevy::math::{Vec3};
-use bevy::pbr::{PbrBundle, StandardMaterial};
-use bevy::prelude::{Color, Commands, Component, Entity, Fixed, Mesh, Query, Res, ResMut, Resource, shape, Time, Transform, With};
+use bevy::pbr::{PbrBundle};
+use bevy::prelude::{Commands, Component, Entity, Fixed, Query, Res, ResMut, Time, Transform, With};
 use bevy_turborand::{DelegatedRng, GlobalRng};
-use bevy_xpbd_3d::components::{Collider, LinearDamping, Position, RigidBody};
-use bevy_xpbd_3d::prelude::{ExternalForce, MassPropertiesBundle};
+use bevy_xpbd_3d::components::{CollisionLayers, Position, RigidBody};
+use bevy_xpbd_3d::prelude::{ExternalForce, LinearVelocity};
+use crate::assets::SantasAssets;
 use crate::input::CoolDown;
-use crate::santa::Santa;
+use crate::santa::{CollisionLayer, Santa};
 
 pub struct SnowPlugin;
 
 impl Plugin for SnowPlugin {
     fn build(&self, app: &mut App) {
         app
-            .insert_resource(Time::<Fixed>::from_seconds(0.05))
-            .insert_resource(Wind {
-                wind_force: Vec3::new(5.0, 2.0, -5.0),
-                wind_force_max: Vec3::new(0.0, 2.0, 0.1),
-                factor: 0.0,
-                factor_max: 0.1,
-            })
+            .insert_resource(Time::<Fixed>::from_seconds(0.01))
             .add_systems(
                 Update,
                 (
                     kill_snow,
-                    snow_drag,
                 ),
             )
             .add_systems(
                 FixedUpdate, (
                     spawn_snow,
-                    change_wind,
                 ));
     }
 }
 
-#[derive(Resource)]
-pub struct Wind {
-    pub wind_force: Vec3,
-    pub wind_force_max: Vec3,
-    pub factor: f32,
-    pub factor_max: f32,
-}
-
 #[derive(Component)]
 pub struct Snow {
-    time_to_live: f32,
+    time_to_live: f32
 }
 
 impl Snow {
@@ -66,21 +50,6 @@ impl CoolDown for Snow {
     }
 }
 
-fn change_wind(
-    mut wind: ResMut<Wind>,
-    mut global_rng: ResMut<GlobalRng>,
-) {
-    // wind.factor += global_rng.f32_normalized();
-    // if wind.factor > wind.factor_max {
-    //     wind.factor = -wind.factor_max;
-    // }
-    // if wind.factor < -wind.factor_max {
-    //     wind.factor = wind.factor_max;
-    // }
-    //
-    // wind.wind_force = wind.wind_force_max * wind.factor;
-}
-
 fn kill_snow(
     mut commands: Commands,
     mut snow_query: Query<(Entity, &mut Snow)>,
@@ -93,62 +62,40 @@ fn kill_snow(
     }
 }
 
-pub const SNOW_DRAG_FACTOR: f32 = 0.0002;
-
-fn snow_drag(
-    mut snow_query: Query<&mut ExternalForce, With<Snow>>,
-    wind: Res<Wind>,
-    time: Res<Time>,
-) {
-    for mut force in snow_query.iter_mut() {
-        force.set_force(wind.wind_force * time.delta_seconds() * SNOW_DRAG_FACTOR);
-    }
-}
-
 fn spawn_snow(
     mut commands: Commands,
     where_is_santa: Query<&Transform, With<Santa>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    santas_assets: Res<SantasAssets>,
     mut global_rng: ResMut<GlobalRng>,
 ) {
     if let Ok(santa_position) = where_is_santa.get_single() {
-        for _n in 0..10 {
+        for _n in 0..25 {
             let x = global_rng.f32_normalized() * 25.0;
-            let z = -global_rng.f32() * 25.0;
+            let z = global_rng.f32() * 25.0;
+            let y = global_rng.f32() * 10.0;
 
-            let snow_direction = Vec3::new(0.0, 0.0, 10.0);
+            let snow_direction = Vec3::new(x, y, z);
 
-            let snow_position = santa_position.translation + santa_position.rotation.mul_vec3(snow_direction) + Vec3::new(x, 10.0, z);
+            let snow_position = santa_position.translation + santa_position.rotation.mul_vec3(snow_direction);
 
-            let material = materials.add(StandardMaterial {
-                base_color: Color::WHITE,
-                ..Default::default()
-            });
-
-            let radius = 0.05;
-            let density = 0.01;
-
-            let snow_mesh = meshes.add(
-                shape::UVSphere {
-                    radius,
-                    sectors: 8,
-                    stacks: 4,
-                }.into());
             commands.spawn(
                 (
                     Name::from("SnowFlake"),
                     Snow::new(10.0),
                     PbrBundle {
-                        mesh: snow_mesh,
-                        material,
+                        mesh: santas_assets.snowball_mesh.clone(),
+                        material: santas_assets.snowball_material.clone(),
                         ..Default::default()
                     },
                     ExternalForce::new(Vec3::ZERO),
                     Position::new(snow_position),
-                    LinearDamping(0.9),
-                    RigidBody::Dynamic,
-                    MassPropertiesBundle::new_computed(&Collider::ball(radius), density),
+                    RigidBody::Kinematic,
+                    LinearVelocity::from(Vec3::new(global_rng.f32() * 5.0, -global_rng.f32() * 3.0, global_rng.f32_normalized() * 2.0)),
+                    CollisionLayers::new(
+                        [CollisionLayer::Snow],
+                        [
+                            CollisionLayer::Nothing,
+                        ]),
                 ));
         }
     }
