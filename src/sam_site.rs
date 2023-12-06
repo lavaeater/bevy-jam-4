@@ -1,5 +1,7 @@
 use bevy::app::{App, Plugin, PostStartup, Update};
-use bevy::prelude::{ResMut, Resource};
+use bevy::prelude::{Commands, Res, ResMut, Resource};
+use bevy::time::Time;
+use crate::assets::SantasAssets;
 use crate::input::CoolDown;
 
 pub struct SamSite;
@@ -17,9 +19,6 @@ impl Plugin for SamSite {
     }
 }
 
-fn spawn_sam_sites(
-    sam_site_params: ResMut<SamSiteParams>
-) {}
 
 #[derive(Resource)]
 pub struct SamSiteParams {
@@ -44,5 +43,22 @@ impl CoolDown for SamSiteParams {
             return true;
         }
         false
+    }
+}
+
+fn spawn_sam_sites(
+    mut sam_site_params: ResMut<SamSiteParams>,
+    santas_assets: Res<SantasAssets>,
+    time: Res<Time>,
+    mut commands: Commands,
+) {
+    if sam_site_params.cool_down(time.delta_seconds()) {
+        commands
+            .spawn(santas_assets.turret.clone())
+            .insert(SamSite)
+            .insert(santas_assets.snowball_mesh.clone())
+            .insert(santas_assets.snowball_material.clone())
+            .insert(sam_site_params.clone())
+        ;
     }
 }
