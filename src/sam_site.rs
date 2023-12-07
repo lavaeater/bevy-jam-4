@@ -6,7 +6,7 @@ use bevy::pbr::PbrBundle;
 use bevy::prelude::{Commands, Component, Entity, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
-use bevy_xpbd_3d::prelude::LinearVelocity;
+use bevy_xpbd_3d::prelude::{AngularVelocity, LinearVelocity};
 use crate::assets::SantasAssets;
 use crate::input::{CoolDown};
 use crate::santa::{CollisionLayer, Santa};
@@ -97,6 +97,18 @@ impl CoolDown for SurfaceToAirMissile {
 
 fn kill_missiles(
     mut missiles: Query<(Entity, &mut SurfaceToAirMissile)>,
+    time: Res<Time>,
+    mut commands: Commands
+) {
+    for (entity, mut sam) in missiles.iter_mut() {
+        if sam.cool_down(time.delta_seconds()) {
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+}
+
+fn control_missiles(
+    mut missiles: Query<(&GlobalTransform, &mut LinearVelocity, &mut AngularVelocity)>,
     time: Res<Time>,
     mut commands: Commands
 ) {
