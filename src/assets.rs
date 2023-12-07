@@ -25,6 +25,8 @@ pub struct SantasAssets {
     pub snowball_mesh: Handle<Mesh>,
     pub snowball_material: Handle<StandardMaterial>,
     pub missile: Handle<Scene>,
+    pub sphere_mesh: Handle<Mesh>,
+    pub sphere_material: Handle<StandardMaterial>
 }
 
 pub fn load_assets(
@@ -64,5 +66,24 @@ pub fn load_assets(
             ..Default::default()
         }),
         missile: asset_server.load("models/missile.glb#Scene0"),
+        sphere_mesh: meshes.add(
+            shape::UVSphere {
+                radius: 1.0,
+                sectors: 16,
+                stacks: 8,
+            }.into()),
+        sphere_material: materials.add(StandardMaterial {
+            base_color: Color::Rgba {
+                red: 0.25,
+                green: 1.0,
+                blue: 1.0,
+                alpha: 0.5,},
+            emissive: Color::YELLOW,
+            metallic: 1.0,
+            reflectance: 1.0,
+            diffuse_transmission: 0.8,
+            specular_transmission: 0.5,
+            ..Default::default()
+        }),
     }
 }

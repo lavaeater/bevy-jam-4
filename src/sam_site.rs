@@ -109,6 +109,71 @@ fn kill_missiles(
     }
 }
 
+#[derive(Component)]
+pub struct MissileTrailEmitter {
+    pub cool_down: f32,
+    pub time_left: f32,
+}
+
+impl MissileTrailEmitter {
+    pub fn new(cool_down: f32) -> Self {
+        Self {
+            cool_down,
+            time_left: 0.0,
+        }
+    }
+}
+
+impl CoolDown for MissileTrailEmitter {
+    fn cool_down(&mut self, delta: f32) -> bool {
+        self.time_left -= delta;
+        if self.time_left <= 0.0 {
+            self.time_left = self.cool_down;
+            return true;
+        }
+        false
+    }
+}
+
+#[derive(Component)]
+pub struct MissileTrail {
+    pub time_to_live: f32,
+    pub start_scale: f32,
+    pub max_scale: f32,
+}
+
+impl MissileTrail {
+    pub fn new(time_to_live: f32, start_scale: f32, max_scale: f32) -> Self {
+        Self {
+            time_to_live,
+            start_scale,
+            max_scale,
+        }
+    }
+}
+
+impl CoolDown for MissileTrail {
+    fn cool_down(&mut self, delta: f32) -> bool {
+        self.time_to_live -= delta;
+        self.time_to_live <= 0.0
+    }
+}
+
+fn emit_missile_trail(
+    mut missiles: Query<(&GlobalTransform, &mut MissileTrailEmitter)>,
+    mut commands: Commands,
+    time: Res<Time>,
+    santas_assets: Res<SantasAssets>
+) {
+    for (global_transform, mut emitter) in missiles.iter_mut() {
+        if emitter.cool_down(time.delta_seconds()) {
+            commands.spawn((
+
+                ));
+        }
+    }
+}
+
 fn control_missiles(
     mut missiles: Query<(&GlobalTransform, &mut Transform, &mut LinearVelocity), With<SurfaceToAirMissile>>,
     santa_position: Query<&GlobalTransform, With<Santa>>,
@@ -156,6 +221,7 @@ fn fire_sam(
                         transform: t,
                         ..Default::default()
                     },
+                    MissileTrailEmitter::new(0.05),
                     RigidBody::Kinematic,
                     CollisionLayers::new(
                         [CollisionLayer::Missile],
@@ -173,7 +239,6 @@ fn fire_sam(
         }
     }
 }
-
 
 fn spawn_sam_sites(
     mut sam_site_params: ResMut<SamSiteParams>,
