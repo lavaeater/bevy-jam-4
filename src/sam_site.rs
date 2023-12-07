@@ -16,7 +16,7 @@ pub struct SamSitePlugin;
 impl Plugin for SamSitePlugin {
     fn build(&self, app: &mut App) {
         app
-            .insert_resource(SamSiteParams::new(2.0))
+            .insert_resource(SamSiteParams::new(2.0, 1))
             .add_systems(Update,
                          (
                              spawn_sam_sites,
@@ -32,13 +32,17 @@ impl Plugin for SamSitePlugin {
 pub struct SamSiteParams {
     pub time_left: f32,
     pub cool_down_timer: f32,
+    pub max_sam_sites: u32,
+    pub sam_site_count: u32,
 }
 
 impl SamSiteParams {
-    pub fn new(cool_down_timer: f32) -> Self {
+    pub fn new(cool_down_timer: f32, max_sam_sites: u32) -> Self {
         Self {
             time_left: 0.0,
             cool_down_timer,
+            max_sam_sites,
+            sam_site_count: 0,
         }
     }
 }
@@ -157,7 +161,8 @@ fn spawn_sam_sites(
     mut commands: Commands,
     where_is_santa: Query<&GlobalTransform, With<Santa>>,
 ) {
-    if sam_site_params.cool_down(time.delta_seconds()) {
+    if sam_site_params.cool_down(time.delta_seconds()) && sam_site_params.sam_site_count < sam_site_params.max_sam_sites {
+        sam_site_params.sam_site_count += 1;
         if let Ok(santas_transform) = where_is_santa.get_single() {
             let sam_site_position = santas_transform.translation() + -santas_transform.forward() * 100.0 + vec3(0.0, -50.0, 0.0);
 
