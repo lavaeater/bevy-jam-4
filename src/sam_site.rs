@@ -1,7 +1,8 @@
 use bevy::app::{App, Plugin, Update};
+use bevy::asset::io::processor_gated::TransactionLockedReader;
 use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, DespawnRecursiveExt};
-use bevy::math::{vec3};
+use bevy::math::{Quat, vec3};
 use bevy::pbr::PbrBundle;
 use bevy::prelude::{Commands, Component, Entity, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
@@ -109,11 +110,17 @@ fn kill_missiles(
 }
 
 fn control_missiles(
-    mut missiles: Query<(&GlobalTransform, &mut LinearVelocity), With<SurfaceToAirMissile>>,
+    mut missiles: Query<(&GlobalTransform, &mut Transform, &mut LinearVelocity), With<SurfaceToAirMissile>>,
     santa_position: Query<&GlobalTransform, With<Santa>>
 ) {
     if let Ok(santa_pos) = santa_position.get_single() {
-        for (missile_transform, mut sam) in missiles.iter_mut() {
+        for (missile_global_transform, mut transform, mut sam_velocity) in missiles.iter_mut() {
+            let missile_forward = missile_global_transform.forward();
+            let desired_forward = (santa_pos.translation() - missile_global_transform.translation()).normalize();
+            let q = Quat::from_rotation_arc(missile_forward, desired_forward);
+            transform.rotation = q;
+
+
         }
     }
 }
@@ -131,7 +138,13 @@ fn fire_sam(
 
             let sam_site_position = global_transform.translation();
 
-            let missile_velocity = (santa_pos.translation() - sam_site_position).normalize() * 250.0;
+            let mut missile_velocity = (santa_pos.translation() - sam_site_position).normalize();
+            let mut t = Transform::from_xyz(
+                sam_site_position.x,
+                sam_site_position.y,
+                sam_site_position.z);
+            t.rotation = Quat::from_rotation_arc(vec3(0.0, 0.0, 1.0), missile_velocity);
+            missile_velocity *= 200.0;
 
             commands
                 .spawn((
@@ -139,10 +152,7 @@ fn fire_sam(
                     SurfaceToAirMissile::new(10.0),
                     SceneBundle {
                         scene: santas_assets.missile.clone(),
-                        transform: Transform::from_xyz(
-                            sam_site_position.x,
-                            sam_site_position.y,
-                            sam_site_position.z),
+                        transform: t,
                         ..Default::default()
                     },
                     RigidBody::Kinematic,
