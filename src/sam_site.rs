@@ -22,6 +22,7 @@ impl Plugin for SamSitePlugin {
                              spawn_sam_sites,
                              fire_sam,
                              kill_missiles,
+                             control_missiles,
                          ),
             )
         ;
@@ -108,13 +109,11 @@ fn kill_missiles(
 }
 
 fn control_missiles(
-    mut missiles: Query<(&GlobalTransform, &mut LinearVelocity, &mut AngularVelocity)>,
-    time: Res<Time>,
-    mut commands: Commands
+    mut missiles: Query<(&GlobalTransform, &mut LinearVelocity), With<SurfaceToAirMissile>>,
+    santa_position: Query<&GlobalTransform, With<Santa>>
 ) {
-    for (entity, mut sam) in missiles.iter_mut() {
-        if sam.cool_down(time.delta_seconds()) {
-            commands.entity(entity).despawn_recursive();
+    if let Ok(santa_pos) = santa_position.get_single() {
+        for (missile_transform, mut sam) in missiles.iter_mut() {
         }
     }
 }
