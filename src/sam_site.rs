@@ -1,11 +1,12 @@
 use bevy::app::{App, Plugin, Update};
 use bevy::core::Name;
-use bevy::hierarchy::BuildChildren;
+use bevy::hierarchy::{BuildChildren, DespawnRecursiveExt};
 use bevy::math::{vec3};
 use bevy::pbr::PbrBundle;
-use bevy::prelude::{Commands, Component, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
+use bevy::prelude::{Commands, Component, Entity, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
+use bevy_xpbd_3d::prelude::LinearVelocity;
 use crate::assets::SantasAssets;
 use crate::input::{CoolDown};
 use crate::santa::{CollisionLayer, Santa};
@@ -15,10 +16,12 @@ pub struct SamSitePlugin;
 impl Plugin for SamSitePlugin {
     fn build(&self, app: &mut App) {
         app
-            .insert_resource(SamSiteParams::new(10.0))
+            .insert_resource(SamSiteParams::new(2.0))
             .add_systems(Update,
                          (
                              spawn_sam_sites,
+                             fire_sam,
+                             kill_missiles,
                          ),
             )
         ;
@@ -68,6 +71,85 @@ impl CoolDown for SamSite {
     }
 }
 
+#[derive(Component)]
+pub struct SurfaceToAirMissile {
+    pub time_to_live: f32,
+}
+
+impl SurfaceToAirMissile {
+    pub fn new(time_to_live: f32) -> Self {
+        Self {
+            time_to_live,
+        }
+    }
+}
+
+impl CoolDown for SurfaceToAirMissile {
+    fn cool_down(&mut self, delta: f32) -> bool {
+        self.time_to_live -= delta;
+        self.time_to_live <= 0.0
+    }
+}
+
+fn kill_missiles(
+    mut missiles: Query<(Entity, &mut SurfaceToAirMissile)>,
+    time: Res<Time>,
+    mut commands: Commands
+) {
+    for (entity, mut sam) in missiles.iter_mut() {
+        if sam.cool_down(time.delta_seconds()) {
+            commands.entity(entity).despawn_recursive();
+        }
+    }
+}
+
+fn fire_sam(
+    mut commands: Commands,
+    mut sam_sites: Query<(&mut SamSite, &GlobalTransform)>,
+    mut santa_position: Query<&GlobalTransform, With<Santa>>,
+    santas_assets: Res<SantasAssets>,
+    time: Res<Time>,
+) {
+    for (mut sam_site, global_transform) in sam_sites.iter_mut() {
+        if sam_site.cool_down(time.delta_seconds()) {
+            let santa_pos = santa_position.get_single().unwrap();
+
+            let sam_site_position = global_transform.translation();
+
+            let missile_velocity = (santa_pos.translation() - sam_site_position).normalize() * 250.0;
+
+            commands
+                .spawn((
+                    Name::from("Surface2Air, Bro!"),
+                    SurfaceToAirMissile::new(10.0),
+                    SceneBundle {
+                        scene: santas_assets.missile.clone(),
+                        transform: Transform::from_xyz(
+                            sam_site_position.x,
+                            sam_site_position.y,
+                            sam_site_position.z),
+                        ..Default::default()
+                    },
+                    RigidBody::Kinematic,
+                    CollisionLayers::new(
+                        [CollisionLayer::Missile],
+                        [
+                            CollisionLayer::Santa,
+                        ]),
+                    LinearVelocity::from(missile_velocity),
+                )).with_children(|children|
+                { // Spawn the child colliders positioned relative to the rigid body
+                    children.spawn((
+                        Collider::cylinder(1.0, 0.1),
+                        Transform::from_xyz(0.0, 0.0, 0.0),
+                    ));
+                })
+            ;
+        }
+    }
+}
+
+
 fn spawn_sam_sites(
     mut sam_site_params: ResMut<SamSiteParams>,
     santas_assets: Res<SantasAssets>,
@@ -77,12 +159,15 @@ fn spawn_sam_sites(
 ) {
     if sam_site_params.cool_down(time.delta_seconds()) {
         if let Ok(santas_transform) = where_is_santa.get_single() {
-
-            let sam_site_position = santas_transform.translation() + -santas_transform.forward() * 1000.0 + vec3(0.0, -50.0, 0.0);
+            let sam_site_position = santas_transform.translation() + -santas_transform.forward() * 100.0 + vec3(0.0, -50.0, 0.0);
 
             commands
                 .spawn((
                     Name::from("SAM Site"),
+                    SamSite {
+                        rate_of_fire_per_minute: 60.0,
+                        time_left: 0.0,
+                    },
                     // FixSceneTransform::new(
                     //     Vec3::new(0.0, -1.0, 0.0),
                     //     Quat::from_euler(

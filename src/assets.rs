@@ -12,7 +12,7 @@ impl Plugin for AssetsPlugin {
         app
             .init_resource::<SantasAssets>()
             .add_systems(Startup, (
-                spawn_assets,
+                load_assets,
             ));
     }
 }
@@ -24,9 +24,10 @@ pub struct SantasAssets {
     pub turret_material: Handle<StandardMaterial>,
     pub snowball_mesh: Handle<Mesh>,
     pub snowball_material: Handle<StandardMaterial>,
+    pub missile: Handle<Scene>,
 }
 
-pub fn spawn_assets(
+pub fn load_assets(
     asset_server: ResMut<AssetServer>,
     mut santas_assets: ResMut<SantasAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -62,5 +63,6 @@ pub fn spawn_assets(
             specular_transmission: 0.5,
             ..Default::default()
         }),
+        missile: asset_server.load("models/missile.glb#Scene0"),
     }
 }
