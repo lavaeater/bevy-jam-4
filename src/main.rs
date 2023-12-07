@@ -8,7 +8,7 @@ mod sam_site;
 
 use bevy::{prelude::*};
 use bevy_turborand::prelude::RngPlugin;
-use bevy_xpbd_3d::plugins::{PhysicsPlugins};
+use bevy_xpbd_3d::plugins::{PhysicsDebugPlugin, PhysicsPlugins};
 use crate::assets::AssetsPlugin;
 use crate::camera::CameraPlugin;
 use crate::environment::EnvironmentPlugin;
@@ -38,7 +38,7 @@ impl Plugin for GamePlugin {
             .add_plugins(SantaPlugin)
             .add_plugins(InputPlugin)
             .add_plugins(SamSitePlugin)
-            // .add_plugins(PhysicsDebugPlugin::default())
+            .add_plugins(PhysicsDebugPlugin::default())
         ;
     }
 }

@@ -2,7 +2,7 @@ use bevy::app::{App, Plugin, Update};
 use bevy::asset::io::processor_gated::TransactionLockedReader;
 use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, DespawnRecursiveExt};
-use bevy::math::{Quat, vec3};
+use bevy::math::{Quat, vec3, Vec3};
 use bevy::pbr::PbrBundle;
 use bevy::prelude::{Commands, Component, Entity, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
@@ -100,7 +100,7 @@ impl CoolDown for SurfaceToAirMissile {
 fn kill_missiles(
     mut missiles: Query<(Entity, &mut SurfaceToAirMissile)>,
     time: Res<Time>,
-    mut commands: Commands
+    mut commands: Commands,
 ) {
     for (entity, mut sam) in missiles.iter_mut() {
         if sam.cool_down(time.delta_seconds()) {
@@ -111,16 +111,16 @@ fn kill_missiles(
 
 fn control_missiles(
     mut missiles: Query<(&GlobalTransform, &mut Transform, &mut LinearVelocity), With<SurfaceToAirMissile>>,
-    santa_position: Query<&GlobalTransform, With<Santa>>
+    santa_position: Query<&GlobalTransform, With<Santa>>,
 ) {
     if let Ok(santa_pos) = santa_position.get_single() {
         for (missile_global_transform, mut transform, mut sam_velocity) in missiles.iter_mut() {
             let missile_forward = missile_global_transform.forward();
-            let desired_forward = (santa_pos.translation() - missile_global_transform.translation()).normalize();
+            let desired_forward = missile_forward.lerp((santa_pos.translation() - missile_global_transform.translation()).normalize(), 0.7);
+
+            sam_velocity.0 = desired_forward * 50.0;
             let q = Quat::from_rotation_arc(missile_forward, desired_forward);
-            transform.rotation = q;
-
-
+            transform.rotate(q);
         }
     }
 }
@@ -144,6 +144,7 @@ fn fire_sam(
                 sam_site_position.y,
                 sam_site_position.z);
             t.rotation = Quat::from_rotation_arc(vec3(0.0, 0.0, 1.0), missile_velocity);
+            t.scale = Vec3::new(0.25, 0.25, 0.25);
             missile_velocity *= 200.0;
 
             commands
@@ -165,8 +166,7 @@ fn fire_sam(
                 )).with_children(|children|
                 { // Spawn the child colliders positioned relative to the rigid body
                     children.spawn((
-                        Collider::cylinder(1.0, 0.1),
-                        Transform::from_xyz(0.0, 0.0, 0.0),
+                        Collider::ball(0.25),
                     ));
                 })
             ;
