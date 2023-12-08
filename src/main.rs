@@ -6,6 +6,7 @@ mod snow;
 mod assets;
 mod sam_site;
 mod collisions;
+mod villages;
 
 use bevy::{prelude::*};
 use bevy::asset::AssetMetaCheck;
