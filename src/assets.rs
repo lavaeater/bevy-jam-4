@@ -1,6 +1,6 @@
 use bevy::app::{App, Plugin, Startup};
 use bevy::asset::{Assets, AssetServer, Handle};
-use bevy::pbr::StandardMaterial;
+use bevy::pbr::{AlphaMode, StandardMaterial};
 use bevy::prelude::{Color, Mesh, ResMut, Resource, shape};
 use bevy::scene::Scene;
 use bevy::utils::default;
@@ -74,15 +74,15 @@ pub fn load_assets(
             }.into()),
         sphere_material: materials.add(StandardMaterial {
             base_color: Color::Rgba {
-                red: 0.25,
+                red: 1.0,
                 green: 1.0,
-                blue: 1.0,
-                alpha: 0.5,},
+                blue: 0.0,
+                alpha: 0.25,},
             emissive: Color::YELLOW,
-            metallic: 1.0,
-            reflectance: 1.0,
-            diffuse_transmission: 0.8,
-            specular_transmission: 0.5,
+            metallic: 0.0,
+            reflectance: 0.0,
+            diffuse_transmission: 1.0,
+            alpha_mode: AlphaMode::Blend,
             ..Default::default()
         }),
     }

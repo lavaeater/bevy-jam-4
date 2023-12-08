@@ -1,11 +1,13 @@
 use bevy::app::{App, Plugin, Update};
+use bevy::asset::Handle;
 use bevy::asset::io::processor_gated::TransactionLockedReader;
 use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, DespawnRecursiveExt};
 use bevy::math::{Quat, vec3, Vec3};
 use bevy::pbr::PbrBundle;
-use bevy::prelude::{Commands, Component, Entity, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
+use bevy::prelude::{Commands, Component, Entity, GlobalTransform, Mesh, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
+use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
 use bevy_xpbd_3d::prelude::{AngularVelocity, LinearVelocity};
 use crate::assets::SantasAssets;
@@ -149,6 +151,8 @@ pub struct MissileTrail {
     pub time_to_live: f32,
     pub start_scale: f32,
     pub max_scale: f32,
+    pub life_times: u32,
+    pub scale_direction: i8
 }
 
 impl MissileTrail {
@@ -157,6 +161,8 @@ impl MissileTrail {
             time_to_live,
             start_scale,
             max_scale,
+            life_times: 0,
+            scale_direction: 1,
         }
     }
 }
@@ -164,7 +170,12 @@ impl MissileTrail {
 impl CoolDown for MissileTrail {
     fn cool_down(&mut self, delta: f32) -> bool {
         self.time_to_live -= delta;
-        self.time_to_live <= 0.0
+        if self.time_to_live <= 0.0 {
+            self.life_times += 1;
+            self.scale_direction *= -1;
+            return true
+        }
+        false
     }
 }
 
@@ -172,27 +183,38 @@ fn emit_missile_trail(
     mut missiles: Query<(&GlobalTransform, &mut MissileTrailEmitter)>,
     mut commands: Commands,
     time: Res<Time>,
-    santas_assets: Res<SantasAssets>
+    santas_assets: Res<SantasAssets>,
+    mut global_rng: ResMut<GlobalRng>
 ) {
     for (global_transform, mut emitter) in missiles.iter_mut() {
         if emitter.cool_down(time.delta_seconds()) {
+            let missile_trail = MissileTrail::new(0.25, global_rng.f32(), (global_rng.f32() + 0.5) * 2.5);
             commands.spawn((
                 PbrBundle {
                     mesh: santas_assets.sphere_mesh.clone(),
                     material: santas_assets.sphere_material.clone(),
-                    transform: Transform::from_xyz(global_transform.translation().x, global_transform.translation().y, global_transform.translation().z),
+                    transform: Transform::from_xyz(global_transform.translation().x, global_transform.translation().y, global_transform.translation().z).with_scale(Vec3::new(missile_trail.start_scale, missile_trail.start_scale, missile_trail.start_scale)),
                     ..Default::default()
                 },
-                MissileTrail::new(0.5, 0.1, 5.0),
+                missile_trail
                 ));
         }
     }
 }
 
 fn control_missile_trail(
-
+    mut trails: Query<(&mut MissileTrail, &mut Transform, Entity)>,
+    mut commands: Commands,
+    time: Res<Time>,
 ) {
+    for (mut trail, mut transform, entity) in trails.iter_mut() {
+        let target_scale = if trail.scale_direction.is_positive() { trail.max_scale } else { trail.start_scale };
+        transform.scale = transform.scale.lerp(Vec3::new(target_scale, target_scale, target_scale), 0.1);
+        if trail.cool_down(time.delta_seconds()) && trail.life_times > 2 {
+            commands.entity(entity).despawn_recursive();
+        }
 
+    }
 }
 
 fn control_missiles(
@@ -247,7 +269,7 @@ fn fire_sam(
                         transform: t,
                         ..Default::default()
                     },
-                    MissileTrailEmitter::new(0.05),
+                    MissileTrailEmitter::new(0.02),
                     RigidBody::Kinematic,
                     CollisionLayers::new(
                         [CollisionLayer::Missile],
