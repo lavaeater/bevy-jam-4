@@ -70,7 +70,7 @@ fn spawn_explosions(
 ) {
     for explosion in explosion_reader.read() {
         let explosion_size = global_rng.i32(5..=15);
-        for _i in (1..explosion_size) {
+        for _i in 1..explosion_size {
             let missile_trail = MissileTrail::new(0.5 * global_rng.f32(), global_rng.f32(), (global_rng.f32() + 0.5) * 10.0);
             commands.spawn((
                 PbrBundle {

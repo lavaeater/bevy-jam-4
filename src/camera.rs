@@ -2,7 +2,6 @@ use bevy::app::{App, Plugin, PostUpdate, Startup};
 use bevy::math::{Vec3};
 use bevy::prelude::{Camera3dBundle, Commands, Component, IntoSystemConfigs, Query, Reflect, Transform, With, Without};
 use bevy::transform::TransformSystem;
-use bevy_atmosphere::plugin::{AtmosphereCamera};
 use bevy_xpbd_3d::math::{Vector3};
 use bevy_xpbd_3d::PhysicsSet;
 use crate::santa::Santa;
@@ -41,7 +40,7 @@ impl Plugin for CameraPlugin {
 fn spawn_camera(mut commands: Commands) {
     commands.spawn((
         Camera3dBundle::default(),
-        AtmosphereCamera::default(),
+        // AtmosphereCamera::default(),
         GameCamera {},
         CameraOffset(Vec3::new(0.0, 15.0, -40.0)),
     ));
