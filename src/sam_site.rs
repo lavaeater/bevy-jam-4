@@ -1,25 +1,26 @@
+use std::f32::consts::PI;
 use bevy::app::{App, Plugin, Update};
 use bevy::asset::Handle;
 use bevy::asset::io::processor_gated::TransactionLockedReader;
 use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, DespawnRecursiveExt};
 use bevy::math::{Quat, vec3, Vec3};
-use bevy::pbr::PbrBundle;
-use bevy::prelude::{Commands, Component, Entity, GlobalTransform, Mesh, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
+use bevy::pbr::{PbrBundle, SpotLight, SpotLightBundle};
+use bevy::prelude::{Color, Commands, Component, default, Entity, GlobalTransform, Mesh, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
 use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
 use bevy_xpbd_3d::prelude::{AngularVelocity, LinearVelocity};
 use crate::assets::SantasAssets;
 use crate::input::{CoolDown};
-use crate::santa::{CollisionLayer, Santa};
+use crate::santa::{CollisionLayer, ParentEntity, Santa};
 
 pub struct SamSitePlugin;
 
 impl Plugin for SamSitePlugin {
     fn build(&self, app: &mut App) {
         app
-            .insert_resource(SamSiteParams::new(2.0, 1))
+            .insert_resource(SamSiteParams::new(2.0, 100))
             .add_systems(Update,
                          (
                              spawn_sam_sites,
@@ -28,7 +29,6 @@ impl Plugin for SamSitePlugin {
                              control_missiles,
                              emit_missile_trail,
                              control_missile_trail,
-
                          ),
             )
         ;
@@ -96,10 +96,13 @@ impl SurfaceToAirMissile {
             time_to_live,
             acceleration,
             velocity,
-            max_velocity
+            max_velocity,
         }
     }
 }
+
+#[derive(Component)]
+pub struct SamChild;
 
 impl CoolDown for SurfaceToAirMissile {
     fn cool_down(&mut self, delta: f32) -> bool {
@@ -152,7 +155,7 @@ pub struct MissileTrail {
     pub start_scale: f32,
     pub max_scale: f32,
     pub life_times: u32,
-    pub scale_direction: i8
+    pub scale_direction: i8,
 }
 
 impl MissileTrail {
@@ -173,7 +176,7 @@ impl CoolDown for MissileTrail {
         if self.time_to_live <= 0.0 {
             self.life_times += 1;
             self.scale_direction *= -1;
-            return true
+            return true;
         }
         false
     }
@@ -184,11 +187,11 @@ fn emit_missile_trail(
     mut commands: Commands,
     time: Res<Time>,
     santas_assets: Res<SantasAssets>,
-    mut global_rng: ResMut<GlobalRng>
+    mut global_rng: ResMut<GlobalRng>,
 ) {
     for (global_transform, mut emitter) in missiles.iter_mut() {
         if emitter.cool_down(time.delta_seconds()) {
-            let missile_trail = MissileTrail::new(0.25, global_rng.f32(), (global_rng.f32() + 0.5) * 2.5);
+            let missile_trail = MissileTrail::new(1.0, global_rng.f32(), (global_rng.f32() + 0.5) * 2.5);
             commands.spawn((
                 PbrBundle {
                     mesh: santas_assets.sphere_mesh.clone(),
@@ -197,7 +200,7 @@ fn emit_missile_trail(
                     ..Default::default()
                 },
                 missile_trail
-                ));
+            ));
         }
     }
 }
@@ -213,27 +216,31 @@ fn control_missile_trail(
         if trail.cool_down(time.delta_seconds()) && trail.life_times > 2 {
             commands.entity(entity).despawn_recursive();
         }
-
     }
 }
 
 fn control_missiles(
-    mut missiles: Query<(&GlobalTransform, &mut Transform, &mut LinearVelocity, &mut SurfaceToAirMissile)>,
+    mut missiles: Query<(Entity, &GlobalTransform, &mut Transform, &mut LinearVelocity, &mut SurfaceToAirMissile)>,
     santa_position: Query<&GlobalTransform, With<Santa>>,
     time: Res<Time>,
+    mut commands: Commands,
 ) {
     if let Ok(santa_pos) = santa_position.get_single() {
-        for (missile_global_transform, mut transform, mut sam_velocity, mut sam) in missiles.iter_mut() {
+        for (entity, missile_global_transform, mut transform, mut sam_velocity, mut sam) in missiles.iter_mut() {
+            if sam.cool_down(time.delta_seconds()) {
+                commands.entity(entity).despawn_recursive();
+                // Spawn explosion, bro
+            } else {
+                if sam.velocity < sam.max_velocity {
+                    sam.velocity += sam.acceleration * time.delta_seconds();
+                }
+                let missile_forward = missile_global_transform.forward();
+                let desired_forward = missile_forward.lerp((santa_pos.translation() - missile_global_transform.translation()).normalize(), 0.1);
 
-            if sam.velocity < sam.max_velocity {
-                sam.velocity += sam.acceleration * time.delta_seconds();
+                sam_velocity.0 = desired_forward * sam.velocity;
+                let q = Quat::from_rotation_arc(missile_forward, desired_forward);
+                transform.rotate(q);
             }
-            let missile_forward = missile_global_transform.forward();
-            let desired_forward = missile_forward.lerp((santa_pos.translation() - missile_global_transform.translation()).normalize(), 0.1);
-
-            sam_velocity.0 = desired_forward * sam.velocity;
-            let q = Quat::from_rotation_arc(missile_forward, desired_forward);
-            transform.rotate(q);
         }
     }
 }
@@ -251,19 +258,19 @@ fn fire_sam(
 
             let sam_site_position = global_transform.translation();
 
-            let mut missile_velocity = (santa_pos.translation() - sam_site_position).normalize();
+            let mut missile_direction = (santa_pos.translation() - sam_site_position).normalize();
             let mut t = Transform::from_xyz(
                 sam_site_position.x,
                 sam_site_position.y,
                 sam_site_position.z);
-            t.rotation = Quat::from_rotation_arc(vec3(0.0, 0.0, 1.0), missile_velocity);
+            t.rotation = Quat::from_rotation_arc(vec3(0.0, 0.0, 1.0), missile_direction);
             t.scale = Vec3::new(0.25, 0.25, 0.25);
-            missile_velocity *= 50.0;
+            let missile_velocity = missile_direction * 50.0;
 
             commands
                 .spawn((
                     Name::from("Surface2Air, Bro!"),
-                    SurfaceToAirMissile::new(10.0, 50.0, 50.0, 250.0),
+                    SurfaceToAirMissile::new(20.0, 25.0, 25.0, 100.0),
                     SceneBundle {
                         scene: santas_assets.missile.clone(),
                         transform: t,
@@ -280,10 +287,25 @@ fn fire_sam(
                 )).with_children(|children|
                 { // Spawn the child colliders positioned relative to the rigid body
                     children.spawn((
-                        Collider::ball(0.25),
+                        SamChild,
+                        ParentEntity(children.parent_entity()),
+                        Collider::ball(1.0),
                     ));
-                })
-            ;
+                    // children.spawn(
+                    //     SpotLightBundle {
+                    //         transform: Transform::from_xyz(0.0, 0.0, -0.5)
+                    //             .looking_at(t.back(), t.up()),
+                    //         spot_light: SpotLight {
+                    //             intensity: 200000.0, // lumens
+                    //             color: Color::WHITE,
+                    //             shadows_enabled: true,
+                    //             inner_angle: PI / 4.0 * 0.85,
+                    //             outer_angle: PI / 4.0,
+                    //             ..default()
+                    //         },
+                    //         ..default()
+                    //     });
+                });
         }
     }
 }
