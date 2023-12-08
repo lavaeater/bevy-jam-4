@@ -1,8 +1,9 @@
 use bevy::app::{App, Plugin, Startup};
 use bevy::asset::{Assets, AssetServer, Handle};
-use bevy::pbr::StandardMaterial;
+use bevy::pbr::{AlphaMode, StandardMaterial};
 use bevy::prelude::{Color, Mesh, ResMut, Resource, shape};
 use bevy::scene::Scene;
+use bevy::utils::default;
 
 pub struct AssetsPlugin;
 
@@ -11,7 +12,7 @@ impl Plugin for AssetsPlugin {
         app
             .init_resource::<SantasAssets>()
             .add_systems(Startup, (
-                spawn_assets,
+                load_assets,
             ));
     }
 }
@@ -19,11 +20,16 @@ impl Plugin for AssetsPlugin {
 #[derive(Resource, Default)]
 pub struct SantasAssets {
     pub santa: Handle<Scene>,
+    pub turret: Handle<Mesh>,
+    pub turret_material: Handle<StandardMaterial>,
     pub snowball_mesh: Handle<Mesh>,
     pub snowball_material: Handle<StandardMaterial>,
+    pub missile: Handle<Scene>,
+    pub sphere_mesh: Handle<Mesh>,
+    pub sphere_material: Handle<StandardMaterial>
 }
 
-pub fn spawn_assets(
+pub fn load_assets(
     asset_server: ResMut<AssetServer>,
     mut santas_assets: ResMut<SantasAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -32,6 +38,14 @@ pub fn spawn_assets(
     let radius = 0.05;
     *santas_assets = SantasAssets {
         santa: asset_server.load("models/santa_claus-modified.glb#Scene0"),
+        turret: meshes.add(
+            shape::Cube {
+                size: 5.0,
+            }.into()),
+        turret_material: materials.add(StandardMaterial {
+            base_color: Color::GREEN,
+            ..default()
+        }),
         snowball_mesh: meshes.add(
             shape::UVSphere {
                 radius,
@@ -49,6 +63,26 @@ pub fn spawn_assets(
             reflectance: 1.0,
             diffuse_transmission: 0.8,
             specular_transmission: 0.5,
+            ..Default::default()
+        }),
+        missile: asset_server.load("models/missile.glb#Scene0"),
+        sphere_mesh: meshes.add(
+            shape::UVSphere {
+                radius: 1.0,
+                sectors: 16,
+                stacks: 8,
+            }.into()),
+        sphere_material: materials.add(StandardMaterial {
+            base_color: Color::Rgba {
+                red: 1.0,
+                green: 1.0,
+                blue: 0.0,
+                alpha: 0.5,},
+            emissive: Color::YELLOW,
+            // metallic: 0.0,
+            // reflectance: 0.0,
+            // diffuse_transmission: 1.0,
+            alpha_mode: AlphaMode::Blend,
             ..Default::default()
         }),
     }

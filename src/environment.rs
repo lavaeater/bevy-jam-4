@@ -16,7 +16,7 @@ impl Plugin for EnvironmentPlugin {
         app
             .add_plugins(AtmospherePlugin)
             .insert_resource(AtmosphereModel::new(Nishita {
-                sun_position: Vec3::new(0.0, -1.0, 1.0),
+                sun_position: Vec3::new(1.0, 0.5, 1.0),
                 ..default() }))
             .insert_resource(CycleTimer(Timer::new(
                 Duration::from_millis(500), // Update our atmosphere every 50ms (in a real game, this would be much slower, but for the sake of an example we use a faster update)
@@ -25,7 +25,7 @@ impl Plugin for EnvironmentPlugin {
             .add_systems(Startup, (
                 spawn_lights,
             ))
-            .add_systems(Update, daylight_cycle)
+            // .add_systems(Update, daylight_cycle)
         ;
     }
 }

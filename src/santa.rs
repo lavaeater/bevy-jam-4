@@ -35,6 +35,7 @@ pub enum CollisionLayer {
     Solid,
     Snow,
     Nothing,
+    Missile,
 }
 
 #[derive(Component)]
@@ -57,13 +58,34 @@ impl FixSceneTransform {
 #[derive(Component)]
 pub struct Santa;
 
+#[derive(Component)]
+pub struct SantaChild;
+
+#[derive(Component)]
+pub struct ParentEntity(pub Entity);
+
+#[derive(Component)]
+pub struct Health {
+    pub health: i32,
+}
+
+impl Health {
+    pub fn new(health: i32) -> Self {
+        Self {
+            health,
+        }
+    }
+}
+
+
 fn spawn_santa(
     mut commands: Commands,
-    santas_assets: Res<SantasAssets>
+    santas_assets: Res<SantasAssets>,
 ) {
     commands.spawn((
         Name::from("Saint Nicholas"),
         Santa {},
+        Health::new(100),
         FixSceneTransform::new(
             Vec3::new(0.0, -1.0, 0.0),
             Quat::from_euler(
@@ -71,28 +93,34 @@ fn spawn_santa(
                 0.0, 0.0, 0.0),
             Vec3::new(1.0, 1.0, 1.0),
         ),
-        KeyboardController {},
-        Controller::new(30.0, 1.0, 60.0),
-        KinematicMovement {},
         SceneBundle {
             scene: santas_assets.santa.clone(),
             transform: Transform::from_xyz(0.0, 0.0, 0.0),
             ..Default::default()
         },
+        KeyboardController {},
+        Controller::new(300.0, 1.0, 60.0),
+        KinematicMovement {},
         Friction::from(0.0),
         AngularDamping(1.0),
         LinearDamping(0.9),
         RigidBody::Kinematic,
-        // LockedAxes::new().lock_rotation_x().lock_rotation_z(),
         CollisionLayers::new(
             [CollisionLayer::Santa],
             [
                 CollisionLayer::Solid,
                 CollisionLayer::Ground,
+                CollisionLayer::Missile,
             ]),
     )).with_children(|children|
         { // Spawn the child colliders positioned relative to the rigid body
-            children.spawn((Collider::cuboid(1.2, 1.5, 2.0), Transform::from_xyz(0.0, 0.0, 0.0)));
+            children.spawn(
+                (
+                    SantaChild {},
+                    ParentEntity(children.parent_entity()),
+                    Collider::cuboid(1.2, 1.5, 2.0),
+                    Transform::from_xyz(0.0, 0.0, 0.0),
+                ));
         });
 }
 
