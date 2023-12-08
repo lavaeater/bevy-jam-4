@@ -80,12 +80,18 @@ impl CoolDown for SamSite {
 #[derive(Component)]
 pub struct SurfaceToAirMissile {
     pub time_to_live: f32,
+    pub acceleration: f32,
+    pub velocity: f32,
+    pub max_velocity: f32,
 }
 
 impl SurfaceToAirMissile {
-    pub fn new(time_to_live: f32) -> Self {
+    pub fn new(time_to_live: f32, acceleration: f32, velocity: f32, max_velocity: f32) -> Self {
         Self {
             time_to_live,
+            acceleration,
+            velocity,
+            max_velocity
         }
     }
 }
@@ -175,15 +181,17 @@ fn emit_missile_trail(
 }
 
 fn control_missiles(
-    mut missiles: Query<(&GlobalTransform, &mut Transform, &mut LinearVelocity), With<SurfaceToAirMissile>>,
+    mut missiles: Query<(&GlobalTransform, &mut Transform, &mut LinearVelocity, &mut SurfaceToAirMissile)>,
     santa_position: Query<&GlobalTransform, With<Santa>>,
+    time: Res<Time>,
 ) {
     if let Ok(santa_pos) = santa_position.get_single() {
-        for (missile_global_transform, mut transform, mut sam_velocity) in missiles.iter_mut() {
+        for (missile_global_transform, mut transform, mut sam_velocity, mut sam) in missiles.iter_mut() {
+            sam.velocity += sam.acceleration * time.delta_seconds();
             let missile_forward = missile_global_transform.forward();
-            let desired_forward = missile_forward.lerp((santa_pos.translation() - missile_global_transform.translation()).normalize(), 0.7);
+            let desired_forward = missile_forward.lerp((santa_pos.translation() - missile_global_transform.translation()).normalize(), 0.4);
 
-            sam_velocity.0 = desired_forward * 50.0;
+            sam_velocity.0 = desired_forward * sam.velocity;
             let q = Quat::from_rotation_arc(missile_forward, desired_forward);
             transform.rotate(q);
         }
@@ -210,12 +218,12 @@ fn fire_sam(
                 sam_site_position.z);
             t.rotation = Quat::from_rotation_arc(vec3(0.0, 0.0, 1.0), missile_velocity);
             t.scale = Vec3::new(0.25, 0.25, 0.25);
-            missile_velocity *= 200.0;
+            missile_velocity *= 50.0;
 
             commands
                 .spawn((
                     Name::from("Surface2Air, Bro!"),
-                    SurfaceToAirMissile::new(10.0),
+                    SurfaceToAirMissile::new(10.0, 100.0, 50.0, 500.0),
                     SceneBundle {
                         scene: santas_assets.missile.clone(),
                         transform: t,
@@ -256,7 +264,7 @@ fn spawn_sam_sites(
                 .spawn((
                     Name::from("SAM Site"),
                     SamSite {
-                        rate_of_fire_per_minute: 60.0,
+                        rate_of_fire_per_minute: 12.0,
                         time_left: 0.0,
                     },
                     // FixSceneTransform::new(
