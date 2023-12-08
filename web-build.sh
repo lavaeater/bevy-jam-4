@@ -11,4 +11,4 @@ mkdir -p ./out/assets
 cp -r ./assets/* ./out/assets/
 
 
-#butler push teavm/build/dist/webapp lavaeater/jam-packed-christmas:html
+butler push out lavaeater/santa-fighting-christmas:html
