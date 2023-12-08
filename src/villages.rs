@@ -1,9 +1,9 @@
 use bevy::app::{App, Plugin, Startup, Update};
-use bevy::asset::{Assets, AssetServer, Handle};
-use bevy::pbr::{AlphaMode, StandardMaterial};
-use bevy::prelude::{Color, Commands, default, Event, EventReader, EventWriter, Mesh, Res, ResMut, Resource, Scene, shape};
-use bevy_turborand::GlobalRng;
-use crate::sam_site::SamSiteParams;
+use bevy::asset::{AssetServer, Handle};
+use bevy::math::Vec3;
+use bevy::prelude::{Commands, Component, Event, EventReader, EventWriter, Res, ResMut, Resource, Scene, Transform};
+use bevy::scene::SceneBundle;
+use bevy_turborand::{DelegatedRng, GlobalRng};
 
 pub struct VillagePlugin;
 
@@ -12,7 +12,7 @@ impl Plugin for VillagePlugin {
         app
             .init_resource::<LevelAssets>()
             .insert_resource(GameTracker {
-                level: 1,
+                level: 0,
                 score: 0,
                 lives: 3,
             })
@@ -23,6 +23,7 @@ impl Plugin for VillagePlugin {
             .add_systems(Update,
                          (
                              track_game,
+                             load_level,
                          ),
             )
         ;
@@ -49,13 +50,52 @@ fn track_game(
     }
 }
 
+#[derive(Component)]
+pub struct VillageCenter;
+
+#[derive(Component)]
+pub struct House {
+    pub needs_gifts: bool,
+}
+
 fn load_level(
     mut commands: Commands,
     mut load_level_er: EventReader<LoadLevel>,
     level_assets: Res<LevelAssets>,
     mut global_rng: ResMut<GlobalRng>,
 ) {
-    
+    for load_level in load_level_er.read() {
+        let number_of_houses: i32 = (load_level.0 * 2 + load_level.0) as i32;
+
+        let village_center_position = Vec3::new(global_rng.i32(-1000..=1000) as f32, -50.0, global_rng.i32(-1000..=1000) as f32);
+        commands.spawn((
+            VillageCenter,
+            Transform::from_translation(village_center_position)
+        ));
+        for n in 0..number_of_houses {
+            let house_type = global_rng.i32(0..3);
+            let house = level_assets.house_town.clone();
+            //     match house_type {
+            //     0 => level_assets.house_small.clone(),
+            //     1 => level_assets.house_town.clone(),
+            //     2 => level_assets.house_large.clone(),
+            //     _ => panic!("Invalid house type"),
+            // };
+            let x_i:i32 = n % (number_of_houses / 2) - number_of_houses / 2;
+            let z_i: i32 = n / (number_of_houses / 2) - number_of_houses / 2;
+            let x = village_center_position.x + x_i as f32 * 30.0;
+            let z = village_center_position.z + z_i as f32 * 30.0;
+            let y = village_center_position.y;
+            commands.spawn(
+                (
+                    SceneBundle {
+                        transform: Transform::from_xyz(x, y, z),
+                        scene: house,
+                        ..Default::default()
+                    },
+                ));
+        }
+    }
 }
 
 #[derive(Resource, Default)]

@@ -21,6 +21,7 @@ use crate::input::InputPlugin;
 use crate::sam_site::SamSitePlugin;
 use crate::santa::SantaPlugin;
 use crate::snow::SnowPlugin;
+use crate::villages::VillagePlugin;
 
 fn main() {
     App::new()
@@ -50,6 +51,7 @@ impl Plugin for GamePlugin {
             .add_plugins(EnvironmentPlugin)
             .add_plugins(SnowPlugin)
             .add_plugins(CameraPlugin)
+            .add_plugins(VillagePlugin)
             .add_plugins(SantaPlugin)
             .add_plugins(InputPlugin)
             .add_plugins(SamSitePlugin)
