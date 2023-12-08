@@ -82,6 +82,8 @@ impl Health {
     }
 }
 
+#[derive(Component)]
+pub struct Rudolph;
 
 fn spawn_santa(
     mut commands: Commands,
@@ -104,7 +106,7 @@ fn spawn_santa(
             ..Default::default()
         },
         KeyboardController {},
-        Controller::new(300.0, 1.0, 60.0),
+        Controller::new(100.0, 1.0, 60.0),
         KinematicMovement {},
         Friction::from(0.0),
         AngularDamping(1.0),
@@ -129,6 +131,7 @@ fn spawn_santa(
                 ));
             children.spawn(
                 (
+                    Rudolph,
                     SpotLightBundle {
                         spot_light: SpotLight {
                             color: Color::rgb(1.0, 0.0, 0.0),
@@ -136,11 +139,11 @@ fn spawn_santa(
                             range: 2000.0,
                             radius: 0.0,
                             shadows_enabled: true,
-                            inner_angle: 0.0,
-                            outer_angle: std::f32::consts::FRAC_PI_4,
+                            inner_angle: std::f32::consts::FRAC_PI_8 / 8.0,
+                            outer_angle: std::f32::consts::FRAC_PI_8 / 4.0,
                             ..default()
                         },
-                        transform: Transform::from_xyz(2.0, 2.0, 2.0).looking_at(Vec3::new(0.0, 0.0, 1.0), Vec3::Y),
+                        transform: Transform::from_xyz(0.0, 0.0, 0.5).looking_at(Vec3::new(0.0, 0.0, 2.0), Vec3::Y),
                         ..Default::default()
                     },
                 ));

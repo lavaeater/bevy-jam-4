@@ -58,7 +58,11 @@ pub fn load_assets(
                 green: 1.0,
                 blue: 1.0,
                 alpha: 0.5,},
-            emissive: Color::WHITE,
+            emissive: Color::Rgba {
+                red: 0.5,
+                green: 0.5,
+                blue: 0.5,
+                alpha: 1.0},
             metallic: 1.0,
             reflectance: 1.0,
             diffuse_transmission: 0.8,

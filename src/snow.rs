@@ -16,7 +16,7 @@ pub struct SnowPlugin;
 impl Plugin for SnowPlugin {
     fn build(&self, app: &mut App) {
         app
-            .insert_resource(Time::<Fixed>::from_seconds(1.0))
+            .insert_resource(Time::<Fixed>::from_seconds(0.05))
             .add_systems(
                 Update,
                 (
@@ -69,7 +69,7 @@ fn spawn_snow(
     mut global_rng: ResMut<GlobalRng>,
 ) {
     if let Ok(santa_position) = where_is_santa.get_single() {
-        for _n in 0..1 {
+        for _n in 0..25 {
             let x = global_rng.f32_normalized() * 25.0;
             let z = global_rng.f32() * 25.0;
             let y = global_rng.f32() * 10.0;

@@ -49,7 +49,7 @@ pub fn spawn_lights(
         Name::from("Directional Light"),
         DirectionalLightBundle {
             directional_light: DirectionalLight {
-                illuminance: 5.0,
+                illuminance: 0.1,
                 shadows_enabled: true,
                 ..default()
             },

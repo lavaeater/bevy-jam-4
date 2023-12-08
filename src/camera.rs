@@ -1,6 +1,7 @@
 use bevy::app::{App, Plugin, PostUpdate, Startup};
 use bevy::math::{Vec3};
-use bevy::prelude::{Camera3dBundle, Commands, Component, IntoSystemConfigs, Query, Reflect, Transform, With, Without};
+use bevy::pbr::{FogFalloff, FogSettings};
+use bevy::prelude::{Camera3dBundle, Color, Commands, Component, default, IntoSystemConfigs, Query, Reflect, Transform, With, Without};
 use bevy::transform::TransformSystem;
 use bevy_xpbd_3d::math::{Vector3};
 use bevy_xpbd_3d::PhysicsSet;
@@ -40,6 +41,14 @@ impl Plugin for CameraPlugin {
 fn spawn_camera(mut commands: Commands) {
     commands.spawn((
         Camera3dBundle::default(),
+        FogSettings {
+            color: Color::rgba(0.25, 0.25, 0.25, 1.0),
+            falloff: FogFalloff::Linear {
+                start: 50.0,
+                end: 150.0,
+            },
+            ..default()
+        },
         // AtmosphereCamera::default(),
         GameCamera {},
         CameraOffset(Vec3::new(0.0, 15.0, -40.0)),
