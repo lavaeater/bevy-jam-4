@@ -24,6 +24,9 @@ impl Plugin for SamSitePlugin {
                              fire_sam,
                              kill_missiles,
                              control_missiles,
+                             emit_missile_trail,
+                             control_missile_trail,
+
                          ),
             )
         ;
@@ -174,10 +177,22 @@ fn emit_missile_trail(
     for (global_transform, mut emitter) in missiles.iter_mut() {
         if emitter.cool_down(time.delta_seconds()) {
             commands.spawn((
-
+                PbrBundle {
+                    mesh: santas_assets.sphere_mesh.clone(),
+                    material: santas_assets.sphere_material.clone(),
+                    transform: Transform::from_xyz(global_transform.translation().x, global_transform.translation().y, global_transform.translation().z),
+                    ..Default::default()
+                },
+                MissileTrail::new(0.5, 0.1, 5.0),
                 ));
         }
     }
+}
+
+fn control_missile_trail(
+
+) {
+
 }
 
 fn control_missiles(
@@ -187,9 +202,12 @@ fn control_missiles(
 ) {
     if let Ok(santa_pos) = santa_position.get_single() {
         for (missile_global_transform, mut transform, mut sam_velocity, mut sam) in missiles.iter_mut() {
-            sam.velocity += sam.acceleration * time.delta_seconds();
+
+            if sam.velocity < sam.max_velocity {
+                sam.velocity += sam.acceleration * time.delta_seconds();
+            }
             let missile_forward = missile_global_transform.forward();
-            let desired_forward = missile_forward.lerp((santa_pos.translation() - missile_global_transform.translation()).normalize(), 0.4);
+            let desired_forward = missile_forward.lerp((santa_pos.translation() - missile_global_transform.translation()).normalize(), 0.1);
 
             sam_velocity.0 = desired_forward * sam.velocity;
             let q = Quat::from_rotation_arc(missile_forward, desired_forward);
@@ -223,7 +241,7 @@ fn fire_sam(
             commands
                 .spawn((
                     Name::from("Surface2Air, Bro!"),
-                    SurfaceToAirMissile::new(10.0, 100.0, 50.0, 500.0),
+                    SurfaceToAirMissile::new(10.0, 50.0, 50.0, 250.0),
                     SceneBundle {
                         scene: santas_assets.missile.clone(),
                         transform: t,
