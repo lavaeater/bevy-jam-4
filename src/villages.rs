@@ -58,6 +58,8 @@ pub struct House {
     pub needs_gifts: bool,
 }
 
+pub const HOUSE_RADIUS: i32 = 100;
+
 fn load_level(
     mut commands: Commands,
     mut load_level_er: EventReader<LoadLevel>,
@@ -67,7 +69,7 @@ fn load_level(
     for load_level in load_level_er.read() {
         let number_of_houses: i32 = (load_level.0 * 2 + load_level.0) as i32;
 
-        let village_center_position = Vec3::new(global_rng.i32(-1000..=1000) as f32, -50.0, global_rng.i32(-1000..=1000) as f32);
+        let village_center_position = Vec3::new(global_rng.i32(-HOUSE_RADIUS..=HOUSE_RADIUS) as f32, -5.0, global_rng.i32(-HOUSE_RADIUS..=HOUSE_RADIUS) as f32);
         commands.spawn((
             VillageCenter,
             Transform::from_translation(village_center_position)

@@ -17,7 +17,7 @@ pub struct SamSitePlugin;
 impl Plugin for SamSitePlugin {
     fn build(&self, app: &mut App) {
         app
-            .insert_resource(SamSiteParams::new(2.0, 100))
+            .insert_resource(SamSiteParams::new(2.0, 1))
             .add_systems(Update,
                          (
                              spawn_sam_sites,

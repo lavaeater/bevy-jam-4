@@ -49,12 +49,12 @@ pub fn spawn_lights(
         Name::from("Directional Light"),
         DirectionalLightBundle {
             directional_light: DirectionalLight {
-                illuminance: 5000.0,
+                illuminance: 5.0,
                 shadows_enabled: true,
                 ..default()
             },
             transform: Transform {
-                rotation: Quat::from_euler(EulerRot::XYZ, -0.5, 0.2, 0.4),
+                rotation: Quat::from_euler(EulerRot::XYZ, -0.5, 0.6, 0.4),
                 ..default()
             },
 // The default cascade config is designed to handle large scenes.

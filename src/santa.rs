@@ -2,8 +2,10 @@ use bevy::app::{App, Plugin, PostStartup, Update};
 use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{EulerRot, Quat, Vec3};
-use bevy::prelude::{Commands, Component, Entity, Query, Res, Transform, Visibility, With};
+use bevy::pbr::{SpotLight, SpotLightBundle};
+use bevy::prelude::{Color, Commands, Component, Entity, Query, Res, Transform, Visibility, With};
 use bevy::scene::SceneBundle;
+use bevy::utils::default;
 use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
 use bevy_xpbd_3d::prelude::PhysicsLayer;
 use crate::assets::SantasAssets;
@@ -39,13 +41,16 @@ pub enum CollisionLayer {
 }
 
 #[derive(Component)]
-pub struct FixSceneTransform {
+pub struct FixChildTransform {
     pub translation: Vec3,
     pub rotation: Quat,
     pub scale: Vec3,
 }
 
-impl FixSceneTransform {
+#[derive(Component)]
+pub struct NeedsTransformFix;
+
+impl FixChildTransform {
     pub fn new(translation: Vec3, rotation: Quat, scale: Vec3) -> Self {
         Self {
             translation,
@@ -86,7 +91,7 @@ fn spawn_santa(
         Name::from("Saint Nicholas"),
         Santa {},
         Health::new(100),
-        FixSceneTransform::new(
+        FixChildTransform::new(
             Vec3::new(0.0, -1.0, 0.0),
             Quat::from_euler(
                 EulerRot::YXZ,
@@ -116,18 +121,36 @@ fn spawn_santa(
         { // Spawn the child colliders positioned relative to the rigid body
             children.spawn(
                 (
+                    NeedsTransformFix,
                     SantaChild {},
                     ParentEntity(children.parent_entity()),
                     Collider::cuboid(1.2, 1.5, 2.0),
                     Transform::from_xyz(0.0, 0.0, 0.0),
+                ));
+            children.spawn(
+                (
+                    SpotLightBundle {
+                        spot_light: SpotLight {
+                            color: Color::rgb(1.0, 0.0, 0.0),
+                            intensity: 80000.0, // Roughly a 60W non-halogen incandescent bulb
+                            range: 2000.0,
+                            radius: 0.0,
+                            shadows_enabled: true,
+                            inner_angle: 0.0,
+                            outer_angle: std::f32::consts::FRAC_PI_4,
+                            ..default()
+                        },
+                        transform: Transform::from_xyz(2.0, 2.0, 2.0).looking_at(Vec3::new(0.0, 0.0, 1.0), Vec3::Y),
+                        ..Default::default()
+                    },
                 ));
         });
 }
 
 pub fn fix_model_transforms(
     mut commands: Commands,
-    mut scene_instance_query: Query<(Entity, &FixSceneTransform, &Children)>,
-    mut child_query: Query<&mut Transform, With<Visibility>>,
+    mut scene_instance_query: Query<(Entity, &FixChildTransform, &Children)>,
+    mut child_query: Query<&mut Transform, (With<Visibility>, With<NeedsTransformFix>)>,
 ) {
     for (parent, fix_scene_transform, children) in scene_instance_query.iter_mut() {
         for child in children.iter() {
@@ -135,7 +158,8 @@ pub fn fix_model_transforms(
                 transform.translation = fix_scene_transform.translation;
                 transform.rotation = fix_scene_transform.rotation;
                 transform.scale = fix_scene_transform.scale;
-                commands.entity(parent).remove::<FixSceneTransform>();
+                commands.entity(parent).remove::<FixChildTransform>();
+                commands.entity(*child).remove::<NeedsTransformFix>();
             }
         }
     }
