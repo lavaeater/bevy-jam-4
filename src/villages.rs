@@ -74,14 +74,14 @@ fn load_level(
         ));
         for n in 0..number_of_houses {
             let house_type = global_rng.i32(0..3);
-            let house = level_assets.house_town.clone();
-            //     match house_type {
-            //     0 => level_assets.house_small.clone(),
-            //     1 => level_assets.house_town.clone(),
-            //     2 => level_assets.house_large.clone(),
-            //     _ => panic!("Invalid house type"),
-            // };
-            let x_i:i32 = n % (number_of_houses / 2) - number_of_houses / 2;
+            let house =
+                match house_type {
+                    0 => level_assets.house_small.clone(),
+                    1 => level_assets.house_town.clone(),
+                    2 => level_assets.house_large.clone(),
+                    _ => panic!("Invalid house type"),
+                };
+            let x_i: i32 = n % (number_of_houses / 2) - number_of_houses / 2;
             let z_i: i32 = n / (number_of_houses / 2) - number_of_houses / 2;
             let x = village_center_position.x + x_i as f32 * 30.0;
             let z = village_center_position.z + z_i as f32 * 30.0;
