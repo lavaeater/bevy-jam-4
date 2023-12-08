@@ -1,16 +1,13 @@
-use std::f32::consts::PI;
 use bevy::app::{App, Plugin, Update};
-use bevy::asset::Handle;
-use bevy::asset::io::processor_gated::TransactionLockedReader;
 use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, DespawnRecursiveExt};
 use bevy::math::{Quat, vec3, Vec3};
-use bevy::pbr::{PbrBundle, SpotLight, SpotLightBundle};
-use bevy::prelude::{Color, Commands, Component, default, Entity, GlobalTransform, Mesh, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
+use bevy::pbr::{PbrBundle};
+use bevy::prelude::{Commands, Component, Entity, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
 use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
-use bevy_xpbd_3d::prelude::{AngularVelocity, LinearVelocity};
+use bevy_xpbd_3d::prelude::{LinearVelocity};
 use crate::assets::SantasAssets;
 use crate::input::{CoolDown};
 use crate::santa::{CollisionLayer, ParentEntity, Santa};
@@ -248,7 +245,7 @@ fn control_missiles(
 fn fire_sam(
     mut commands: Commands,
     mut sam_sites: Query<(&mut SamSite, &GlobalTransform)>,
-    mut santa_position: Query<&GlobalTransform, With<Santa>>,
+    santa_position: Query<&GlobalTransform, With<Santa>>,
     santas_assets: Res<SantasAssets>,
     time: Res<Time>,
 ) {
@@ -258,7 +255,7 @@ fn fire_sam(
 
             let sam_site_position = global_transform.translation();
 
-            let mut missile_direction = (santa_pos.translation() - sam_site_position).normalize();
+            let missile_direction = (santa_pos.translation() - sam_site_position).normalize();
             let mut t = Transform::from_xyz(
                 sam_site_position.x,
                 sam_site_position.y,

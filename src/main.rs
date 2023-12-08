@@ -8,8 +8,10 @@ mod sam_site;
 mod collisions;
 
 use bevy::{prelude::*};
+use bevy::asset::AssetMetaCheck;
+use bevy::window::WindowResolution;
 use bevy_turborand::prelude::RngPlugin;
-use bevy_xpbd_3d::plugins::{PhysicsDebugPlugin, PhysicsPlugins};
+use bevy_xpbd_3d::plugins::{PhysicsPlugins};
 use crate::assets::AssetsPlugin;
 use crate::camera::CameraPlugin;
 use crate::collisions::CollisionsPlugin;
@@ -21,7 +23,17 @@ use crate::snow::SnowPlugin;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .insert_resource(AssetMetaCheck::Never)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                fit_canvas_to_parent: true,
+                resolution: WindowResolution::new(
+                    1024.,
+                    768.),
+                ..default()
+            }),
+            ..default()
+        }))
         .add_plugins(GamePlugin)
         .run();
 }

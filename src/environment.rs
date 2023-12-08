@@ -1,27 +1,22 @@
-use std::time::Duration;
-use bevy::app::{App, Plugin, Startup, Update};
+use bevy::app::{App, Plugin, Startup};
 use bevy::core::Name;
-use bevy::math::{EulerRot, Quat, Vec3};
+use bevy::math::{EulerRot, Quat};
 use bevy::pbr::{CascadeShadowConfigBuilder, DirectionalLight, DirectionalLightBundle};
-use bevy::prelude::{Commands, default, Res, ResMut, Resource, Transform};
-use bevy::time::{Time, Timer, TimerMode};
-use bevy_atmosphere::model::AtmosphereModel;
-use bevy_atmosphere::plugin::AtmospherePlugin;
-use bevy_atmosphere::prelude::{AtmosphereMut, Nishita};
+use bevy::prelude::{Commands, default, Transform};
 
 pub struct EnvironmentPlugin;
 
 impl Plugin for EnvironmentPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_plugins(AtmospherePlugin)
-            .insert_resource(AtmosphereModel::new(Nishita {
-                sun_position: Vec3::new(1.0, 0.5, 1.0),
-                ..default() }))
-            .insert_resource(CycleTimer(Timer::new(
-                Duration::from_millis(500), // Update our atmosphere every 50ms (in a real game, this would be much slower, but for the sake of an example we use a faster update)
-                TimerMode::Repeating,
-            )))
+            // .add_plugins(AtmospherePlugin)
+            // .insert_resource(AtmosphereModel::new(Nishita {
+            //     sun_position: Vec3::new(1.0, 0.5, 1.0),
+            //     ..default() }))
+            // .insert_resource(CycleTimer(Timer::new(
+            //     Duration::from_millis(500), // Update our atmosphere every 50ms (in a real game, this would be much slower, but for the sake of an example we use a faster update)
+            //     TimerMode::Repeating,
+            // )))
             .add_systems(Startup, (
                 spawn_lights,
             ))
@@ -30,22 +25,22 @@ impl Plugin for EnvironmentPlugin {
     }
 }
 
-fn daylight_cycle(
-    mut atmosphere: AtmosphereMut<Nishita>,
-    mut timer: ResMut<CycleTimer>,
-    time: Res<Time>,
-) {
-    timer.0.tick(time.delta());
-
-    if timer.0.finished() {
-        // let t = (time.elapsed_seconds_wrapped() / 50.0) / 2.0;
-        atmosphere.sun_position = Quat::from_euler(EulerRot::YXZ, 0.0, 5f32.to_radians(), 0.0).mul_vec3(atmosphere.sun_position);
-    }
-}
-
-// Timer for updating the daylight cycle (updating the atmosphere every frame is slow, so it's better to do incremental changes)
-#[derive(Resource)]
-struct CycleTimer(Timer);
+// fn daylight_cycle(
+//     mut atmosphere: AtmosphereMut<Nishita>,
+//     mut timer: ResMut<CycleTimer>,
+//     time: Res<Time>,
+// ) {
+//     timer.0.tick(time.delta());
+//
+//     if timer.0.finished() {
+//         // let t = (time.elapsed_seconds_wrapped() / 50.0) / 2.0;
+//         atmosphere.sun_position = Quat::from_euler(EulerRot::YXZ, 0.0, 5f32.to_radians(), 0.0).mul_vec3(atmosphere.sun_position);
+//     }
+// }
+//
+// // Timer for updating the daylight cycle (updating the atmosphere every frame is slow, so it's better to do incremental changes)
+// #[derive(Resource)]
+// struct CycleTimer(Timer);
 
 pub fn spawn_lights(
     mut commands: Commands,
