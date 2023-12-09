@@ -4,7 +4,7 @@ use bevy::core::Name;
 use bevy::hierarchy::BuildChildren;
 use bevy::math::{EulerRot, Quat, Vec3};
 use bevy::pbr::{ PbrBundle, StandardMaterial};
-use bevy::prelude::{Color, Commands, Component, Event, EventReader, EventWriter, Mesh, Res, ResMut, Resource, Scene, shape, Transform};
+use bevy::prelude::{Color, Commands, Component, Entity, Event, EventReader, EventWriter, Mesh, Res, ResMut, Resource, Scene, shape, Transform};
 use bevy::scene::SceneBundle;
 use bevy::utils::default;
 use bevy_turborand::{DelegatedRng, GlobalRng};
@@ -61,21 +61,27 @@ fn track_game(
 }
 
 #[derive(Component)]
-pub struct VillageCenter;
+pub struct VillageCenter {
+    pub needs_gifts_count: i32,
+}
+
+
+
+#[derive(Component)]
+pub struct NeedsGifts;
 
 #[derive(Component)]
 pub struct House {
-    pub needs_gifts: bool,
+    pub belongs_to_village: Entity,
 }
 
-impl Default for House {
-    fn default() -> Self {
+impl House {
+    pub fn new(belongs_to_village: Entity) -> Self {
         Self {
-            needs_gifts: true,
+            belongs_to_village,
         }
     }
 }
-
 
 pub const HOUSE_RADIUS: i32 = 100;
 
@@ -105,10 +111,13 @@ fn load_level(
         let number_of_houses: i32 = (load_level.0 * 2 + load_level.0) as i32;
 
         let village_center_position = Vec3::new(global_rng.i32(-HOUSE_RADIUS..=HOUSE_RADIUS) as f32, GROUND_PLANE, global_rng.i32(-HOUSE_RADIUS..=HOUSE_RADIUS) as f32);
-        commands.spawn((
-            VillageCenter,
+        let village_entity = commands.spawn((
+            VillageCenter {
+                needs_gifts_count: number_of_houses,
+            },
+            NeedsGifts,
             Transform::from_translation(village_center_position)
-        ));
+        )).id();
         for n in 0..number_of_houses {
             let house_type = global_rng.i32(0..3);
             let house =
@@ -138,7 +147,8 @@ fn load_level(
                         ..Default::default()
                     },
                     RigidBody::Kinematic,
-                    House::default(),
+                    House::new(village_entity),
+                    NeedsGifts,
                     CollisionLayers::new(
                         [CollisionLayer::House],
                         [
@@ -176,7 +186,7 @@ pub fn load_level_assets(
         house_small: asset_server.load("models/houses/house.glb#Scene0"),
         house_town: asset_server.load("models/houses/house-town.glb#Scene0"),
         house_large: asset_server.load("models/houses/house-large.glb#Scene0"),
-        ground_mesh: meshes.add(Mesh::from(shape::Plane { size: 1000.0, subdivisions: 4 })),
+        ground_mesh: meshes.add(Mesh::from(shape::Plane { size: 100000.0, subdivisions: 4 })),
         ground_material: materials.add(StandardMaterial {
             base_color: Color::rgb(0.0, 0.5, 0.0),
             ..default()
