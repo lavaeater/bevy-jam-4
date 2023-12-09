@@ -209,10 +209,20 @@ fn search_for_villages(
 }
 
 fn track_target_village(
-    mut rudolphs_nose: Query<&mut GlobalTransform, With<RudolphsRedNose>>,
+    mut rudolphs_nose: Query<(&mut Transform, &GlobalTransform), With<RudolphsRedNose>>,
     santa_query: Query<(Entity, &SantaHasTarget), With<Santa>>,
     target_query: Query<(&GlobalTransform, &VillageCenter), (With<NeedsGifts>, Without<RudolphsRedNose>)>,
     mut commands: Commands,
 ) {
-
+    for (santa_entity, santa_has_target) in santa_query.iter() {
+        if let Ok((target_position, _)) = target_query.get(santa_has_target.target) {
+            for(mut rudolph_local, rudolph_global) in rudolphs_nose.iter_mut() {
+                let local_target = rudolph_local.transform_point(target_position.translation());
+                rudolph_local.look_at(local_target, Vec3::Y);
+            }
+        } else {
+            commands.entity(santa_entity).remove::<SantaHasTarget>();
+            commands.entity(santa_entity).insert(SantaNeedsTarget);
+        }
+    }
 }
