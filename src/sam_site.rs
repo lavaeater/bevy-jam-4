@@ -9,7 +9,7 @@ use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
 use bevy_xpbd_3d::prelude::{LinearVelocity};
 use crate::assets::SantasAssets;
-use crate::constants::GROUND_PLANE;
+use crate::constants::{GROUND_PLANE, SAM_ACCELERATION, SAM_MAX_SPEED, SAM_TIME_TO_LIVE};
 use crate::input::{CoolDown};
 use crate::santa::{CollisionLayer, ParentEntity, Santa};
 
@@ -263,12 +263,12 @@ fn fire_sam(
                 sam_site_position.z);
             t.rotation = Quat::from_rotation_arc(vec3(0.0, 0.0, 1.0), missile_direction);
             t.scale = Vec3::new(0.25, 0.25, 0.25);
-            let missile_velocity = missile_direction * 50.0;
+            let missile_velocity = missile_direction;
 
             commands
                 .spawn((
                     Name::from("Surface2Air, Bro!"),
-                    SurfaceToAirMissile::new(10.0, 25.0, 25.0, 100.0),
+                    SurfaceToAirMissile::new(SAM_TIME_TO_LIVE, SAM_ACCELERATION, 10.0, SAM_MAX_SPEED),
                     SceneBundle {
                         scene: santas_assets.missile.clone(),
                         transform: t,

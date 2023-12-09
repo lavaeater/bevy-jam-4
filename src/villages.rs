@@ -3,7 +3,7 @@ use bevy::asset::{Assets, AssetServer, Handle};
 use bevy::core::Name;
 use bevy::hierarchy::BuildChildren;
 use bevy::math::{EulerRot, Quat, Vec3};
-use bevy::pbr::{ PbrBundle, StandardMaterial};
+use bevy::pbr::{PbrBundle, StandardMaterial};
 use bevy::prelude::{Color, Commands, Component, Entity, Event, EventReader, EventWriter, Mesh, Res, ResMut, Resource, Scene, shape, Transform};
 use bevy::scene::SceneBundle;
 use bevy::utils::default;
@@ -66,7 +66,6 @@ pub struct VillageCenter {
 }
 
 
-
 #[derive(Component)]
 pub struct NeedsGifts;
 
@@ -97,7 +96,6 @@ fn create_ground(
             transform: Transform::from_xyz(0.0, GROUND_PLANE, 0.0),
             ..Default::default()
         },
-
     ));
 }
 
@@ -111,13 +109,20 @@ fn load_level(
         let number_of_houses: i32 = (load_level.0 * 2 + load_level.0) as i32;
 
         let village_center_position = Vec3::new(global_rng.i32(-HOUSE_RADIUS..=HOUSE_RADIUS) as f32, GROUND_PLANE, global_rng.i32(-HOUSE_RADIUS..=HOUSE_RADIUS) as f32);
-        let village_entity = commands.spawn((
-            VillageCenter {
-                needs_gifts_count: number_of_houses,
-            },
-            NeedsGifts,
-            Transform::from_translation(village_center_position)
-        )).id();
+        let village_entity = commands.spawn(
+            (
+                VillageCenter {
+                    needs_gifts_count: number_of_houses,
+                },
+                NeedsGifts,
+                PbrBundle {
+                    mesh: level_assets.center_mesh.clone(),
+                    material: level_assets.center_material.clone(),
+                    transform: Transform::from_translation(village_center_position),
+                    ..default()
+                }
+        ))
+        .id();
         for n in 0..number_of_houses {
             let house_type = global_rng.i32(0..3);
             let house =
@@ -174,6 +179,8 @@ pub struct LevelAssets {
     pub house_large: Handle<Scene>,
     pub ground_mesh: Handle<Mesh>,
     pub ground_material: Handle<StandardMaterial>,
+    pub center_mesh: Handle<Mesh>,
+    pub center_material: Handle<StandardMaterial>,
 }
 
 pub fn load_level_assets(
@@ -189,6 +196,12 @@ pub fn load_level_assets(
         ground_mesh: meshes.add(Mesh::from(shape::Plane { size: 100000.0, subdivisions: 4 })),
         ground_material: materials.add(StandardMaterial {
             base_color: Color::rgb(0.0, 0.5, 0.0),
+            ..default()
+        }),
+        center_mesh: meshes.add(Mesh::from(shape::UVSphere { radius: 15.0, stacks: 16, sectors: 8 })),
+        center_material: materials.add(StandardMaterial {
+            base_color: Color::rgb(1.0, 0.0, 0.0),
+            emissive: Color::rgb(1.0, 0.0, 0.0),
             ..default()
         }),
     }

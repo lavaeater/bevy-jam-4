@@ -3,7 +3,7 @@ use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{EulerRot, Quat, Vec3};
 use bevy::pbr::{SpotLight, SpotLightBundle};
-use bevy::prelude::{Color, Commands, Component, Entity, GlobalTransform, Query, Res, Transform, With};
+use bevy::prelude::{Color, Commands, Component, Entity, GlobalTransform, Query, Res, Transform, With, Without};
 use bevy::scene::SceneBundle;
 use bevy::utils::default;
 use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
@@ -151,7 +151,7 @@ fn spawn_santa(
                     SpotLightBundle {
                         spot_light: SpotLight {
                             color: Color::rgb(1.0, 0.0, 0.0),
-                            intensity: 80000.0, // Roughly a 60W non-halogen incandescent bulb
+                            intensity: 8000000.0, // Roughly a 60W non-halogen incandescent bulb
                             range: 2000.0,
                             radius: 0.0,
                             shadows_enabled: true,
@@ -185,7 +185,7 @@ pub fn fix_model_transforms(
 }
 
 fn search_for_villages(
-    village_query: Query<(Entity, &GlobalTransform, &VillageCenter), With<NeedsGifts>>,
+    village_query: Query<(Entity, &Transform, &VillageCenter), With<NeedsGifts>>,
     santas_position: Query<(Entity, &GlobalTransform), With<SantaNeedsTarget>>,
     mut commands: Commands,
 ) {
@@ -193,9 +193,9 @@ fn search_for_villages(
         let mut closest_village: Option<(Entity, f32)> = None;
         for (village_entity, village_transform, village_center) in village_query.iter() {
             if closest_village.is_none() {
-                closest_village = Some((village_entity, village_transform.translation().distance(santas_position.translation())));
+                closest_village = Some((village_entity, village_transform.translation.distance(santas_position.translation())));
             } else {
-                let distance = village_transform.translation().distance(santas_position.translation());
+                let distance = village_transform.translation.distance(santas_position.translation());
                 if distance < closest_village.unwrap().1 {
                     closest_village = Some((village_entity, distance));
                 }
@@ -209,19 +209,10 @@ fn search_for_villages(
 }
 
 fn track_target_village(
-    mut rudolphs_nose: Query<&mut Transform, With<RudolphsRedNose>>,
+    mut rudolphs_nose: Query<&mut GlobalTransform, With<RudolphsRedNose>>,
     santa_query: Query<(Entity, &SantaHasTarget), With<Santa>>,
-    target_query: Query<(&GlobalTransform, &VillageCenter), With<NeedsGifts>>,
+    target_query: Query<(&GlobalTransform, &VillageCenter), (With<NeedsGifts>, Without<RudolphsRedNose>)>,
     mut commands: Commands,
 ) {
-    for (santa_entity, santa_has_target) in santa_query.iter() {
-        if let Ok((target_position, _)) = target_query.get(santa_has_target.target) {
-            for mut rudolphs_nose in rudolphs_nose.iter_mut() {
-                rudolphs_nose.look_at(target_position.translation(), Vec3::Y);
-            }
-        } else {
-            commands.entity(santa_entity).remove::<SantaHasTarget>();
-            commands.entity(santa_entity).insert(SantaNeedsTarget);
-        }
-    }
+  
 }
