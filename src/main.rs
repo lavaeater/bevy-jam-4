@@ -7,6 +7,7 @@ mod assets;
 mod sam_site;
 mod collisions;
 mod villages;
+mod constants;
 
 use bevy::{prelude::*};
 use bevy::asset::AssetMetaCheck;

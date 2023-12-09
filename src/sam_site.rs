@@ -9,6 +9,7 @@ use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
 use bevy_xpbd_3d::prelude::{LinearVelocity};
 use crate::assets::SantasAssets;
+use crate::constants::GROUND_PLANE;
 use crate::input::{CoolDown};
 use crate::santa::{CollisionLayer, ParentEntity, Santa};
 
@@ -317,7 +318,8 @@ fn spawn_sam_sites(
     if sam_site_params.cool_down(time.delta_seconds()) && sam_site_params.sam_site_count < sam_site_params.max_sam_sites {
         sam_site_params.sam_site_count += 1;
         if let Ok(santas_transform) = where_is_santa.get_single() {
-            let sam_site_position = santas_transform.translation() + -santas_transform.forward() * 100.0 + vec3(0.0, -50.0, 0.0);
+            let forward = vec3(-santas_transform.forward().x, 0.0, -santas_transform.forward().z) * 100.0;
+            let sam_site_position = santas_transform.translation() + forward + vec3(0.0, GROUND_PLANE, 0.0);
 
             commands
                 .spawn((

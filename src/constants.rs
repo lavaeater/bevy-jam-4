@@ -1,0 +1,1 @@
+pub const GROUND_PLANE: f32 = -100.0;
