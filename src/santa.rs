@@ -38,6 +38,8 @@ pub enum CollisionLayer {
     Snow,
     Nothing,
     Missile,
+    House,
+    Gift,
 }
 
 #[derive(Component)]
@@ -94,7 +96,7 @@ fn spawn_santa(
         Santa {},
         Health::new(100),
         FixChildTransform::new(
-            Vec3::new(0.0, -1.0, 0.0),
+            Vec3::new(0.0, 1.0, 0.0),
             Quat::from_euler(
                 EulerRot::YXZ,
                 0.0, 0.0, 0.0),
@@ -153,7 +155,7 @@ fn spawn_santa(
 pub fn fix_model_transforms(
     mut commands: Commands,
     mut scene_instance_query: Query<(Entity, &FixChildTransform, &Children)>,
-    mut child_query: Query<&mut Transform, (With<Visibility>, With<NeedsTransformFix>)>,
+    mut child_query: Query<&mut Transform, With<NeedsTransformFix>>,
 ) {
     for (parent, fix_scene_transform, children) in scene_instance_query.iter_mut() {
         for child in children.iter() {

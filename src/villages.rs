@@ -1,11 +1,13 @@
 use bevy::app::{App, Plugin, Startup, Update};
 use bevy::asset::{AssetServer, Handle};
-use bevy::math::Vec3;
+use bevy::hierarchy::BuildChildren;
+use bevy::math::{EulerRot, Quat, Vec3};
 use bevy::prelude::{Commands, Component, Event, EventReader, EventWriter, Res, ResMut, Resource, Scene, Transform};
 use bevy::scene::SceneBundle;
-use bevy::ui::BackgroundColor;
 use bevy_turborand::{DelegatedRng, GlobalRng};
+use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
 use crate::constants::GROUND_PLANE;
+use crate::santa::{CollisionLayer, FixChildTransform, NeedsTransformFix};
 
 pub struct VillagePlugin;
 
@@ -60,6 +62,15 @@ pub struct House {
     pub needs_gifts: bool,
 }
 
+impl Default for House {
+    fn default() -> Self {
+        Self {
+            needs_gifts: true,
+        }
+    }
+}
+
+
 pub const HOUSE_RADIUS: i32 = 100;
 
 fn load_level(
@@ -92,12 +103,34 @@ fn load_level(
             let y = village_center_position.y;
             commands.spawn(
                 (
+                    FixChildTransform::new(
+                        Vec3::new(0.0, 2.0, 0.0),
+                        Quat::from_euler(
+                            EulerRot::YXZ,
+                            0.0, 0.0, 0.0),
+                        Vec3::new(1.0, 1.0, 1.0),
+                    ),
                     SceneBundle {
                         transform: Transform::from_xyz(x, y, z),
                         scene: house,
                         ..Default::default()
                     },
-                ));
+                    RigidBody::Kinematic,
+                    House::default(),
+                    CollisionLayers::new(
+                        [CollisionLayer::House],
+                        [
+                            CollisionLayer::Gift,
+                        ]),
+                )).with_children(|children|
+                { // Spawn the child colliders positioned relative to the rigid body
+                    children.spawn(
+                        (
+                            NeedsTransformFix,
+                            Collider::cuboid(5.0, 5.0, 5.0),
+                            Transform::from_xyz(0.0, 0.0, 0.0),
+                        ));
+                });
         }
     }
 }
