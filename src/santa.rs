@@ -9,6 +9,7 @@ use bevy::utils::default;
 use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
 use bevy_xpbd_3d::prelude::PhysicsLayer;
 use crate::assets::SantasAssets;
+use crate::constants::{SANTA_ACCELERATION, SANTA_MAX_SPEED, SANTA_TURN_SPEED};
 use crate::input::{Controller, KeyboardController, KinematicMovement};
 
 pub struct SantaPlugin;
@@ -108,7 +109,7 @@ fn spawn_santa(
             ..Default::default()
         },
         KeyboardController {},
-        Controller::new(100.0, 10.0, 5.0, 60.0),
+        Controller::new(SANTA_MAX_SPEED, SANTA_ACCELERATION, SANTA_TURN_SPEED, 60.0),
         KinematicMovement {},
         Friction::from(0.0),
         AngularDamping(1.0),

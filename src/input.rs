@@ -1,8 +1,9 @@
 use bevy::app::{App, Plugin, Update};
 use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
-use bevy::prelude::{Component, EventReader, KeyCode, Query, With};
+use bevy::prelude::{Component, EventReader, KeyCode, Query, Res, With};
 use bevy::reflect::Reflect;
+use bevy::time::Time;
 use bevy::utils::HashSet;
 use bevy_xpbd_3d::components::{AngularVelocity, LinearVelocity, Rotation};
 use bevy_xpbd_3d::math::Vector3;
@@ -217,6 +218,7 @@ pub fn dynamic_movement(
 
 pub fn kinematic_movement(
     mut query: Query<(&mut LinearVelocity, &mut AngularVelocity, &Rotation, &mut Controller), With<KinematicMovement>>,
+    time: Res<Time>
 ) {
     for (
         mut linear_velocity,
@@ -241,7 +243,7 @@ pub fn kinematic_movement(
         force = rotation.mul_vec3(force);
 
 
-        controller.speed += controller.acceleration;
+        controller.speed += controller.acceleration * time.delta_seconds();
         if controller.speed > controller.max_speed {
             controller.speed = controller.max_speed;
         }

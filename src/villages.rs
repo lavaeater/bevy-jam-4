@@ -1,9 +1,12 @@
-use bevy::app::{App, Plugin, Startup, Update};
-use bevy::asset::{AssetServer, Handle};
+use bevy::app::{App, Plugin, PostStartup, Startup, Update};
+use bevy::asset::{Assets, AssetServer, Handle};
+use bevy::core::Name;
 use bevy::hierarchy::BuildChildren;
 use bevy::math::{EulerRot, Quat, Vec3};
-use bevy::prelude::{Commands, Component, Event, EventReader, EventWriter, Res, ResMut, Resource, Scene, Transform};
+use bevy::pbr::{ PbrBundle, StandardMaterial};
+use bevy::prelude::{Color, Commands, Component, Event, EventReader, EventWriter, Mesh, Res, ResMut, Resource, Scene, shape, Transform};
 use bevy::scene::SceneBundle;
+use bevy::utils::default;
 use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
 use crate::constants::GROUND_PLANE;
@@ -23,6 +26,9 @@ impl Plugin for VillagePlugin {
             .add_event::<LoadLevel>()
             .add_systems(Startup,
                          load_level_assets,
+            )
+            .add_systems(PostStartup,
+                         create_ground,
             )
             .add_systems(Update,
                          (
@@ -72,6 +78,22 @@ impl Default for House {
 
 
 pub const HOUSE_RADIUS: i32 = 100;
+
+fn create_ground(
+    mut commands: Commands,
+    level_assets: Res<LevelAssets>,
+) {
+    commands.spawn((
+        Name::from("Ground"),
+        PbrBundle {
+            mesh: level_assets.ground_mesh.clone(),
+            material: level_assets.ground_material.clone(),
+            transform: Transform::from_xyz(0.0, GROUND_PLANE, 0.0),
+            ..Default::default()
+        },
+
+    ));
+}
 
 fn load_level(
     mut commands: Commands,
@@ -140,16 +162,24 @@ pub struct LevelAssets {
     pub house_small: Handle<Scene>,
     pub house_town: Handle<Scene>,
     pub house_large: Handle<Scene>,
+    pub ground_mesh: Handle<Mesh>,
+    pub ground_material: Handle<StandardMaterial>,
 }
 
 pub fn load_level_assets(
     asset_server: ResMut<AssetServer>,
     mut level_assets: ResMut<LevelAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     *level_assets = LevelAssets {
         house_small: asset_server.load("models/houses/house.glb#Scene0"),
         house_town: asset_server.load("models/houses/house-town.glb#Scene0"),
         house_large: asset_server.load("models/houses/house-large.glb#Scene0"),
-
+        ground_mesh: meshes.add(Mesh::from(shape::Plane { size: 1000.0, subdivisions: 4 })),
+        ground_material: materials.add(StandardMaterial {
+            base_color: Color::rgb(0.0, 0.5, 0.0),
+            ..default()
+        }),
     }
 }
