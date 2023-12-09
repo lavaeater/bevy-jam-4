@@ -136,6 +136,7 @@ fn spawn_santa(
                 CollisionLayer::Solid,
                 CollisionLayer::Ground,
                 CollisionLayer::Missile,
+                CollisionLayer::House,
             ]),
     )).with_children(|children|
         { // Spawn the child colliders positioned relative to the rigid body

@@ -157,13 +157,14 @@ fn load_level(
                         [CollisionLayer::House],
                         [
                             CollisionLayer::Gift,
+                            CollisionLayer::Santa,
                         ]),
                 )).with_children(|children|
                 { // Spawn the child colliders positioned relative to the rigid body
                     children.spawn(
                         (
                             NeedsTransformFix,
-                            Collider::cuboid(5.0, 5.0, 5.0),
+                            Collider::cuboid(5.0, 50.0, 5.0),
                             Transform::from_xyz(0.0, 0.0, 0.0),
                         ));
                 });
