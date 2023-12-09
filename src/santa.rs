@@ -1,7 +1,7 @@
 use bevy::app::{App, Plugin, PostStartup, Update};
 use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, Children};
-use bevy::math::{EulerRot, Quat, Vec3};
+use bevy::math::{EulerRot, Quat, Vec3, vec3};
 use bevy::pbr::{SpotLight, SpotLightBundle};
 use bevy::prelude::{Color, Commands, Component, Entity, GlobalTransform, Query, Res, Transform, With, Without};
 use bevy::scene::SceneBundle;
@@ -9,7 +9,7 @@ use bevy::utils::default;
 use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
 use bevy_xpbd_3d::prelude::PhysicsLayer;
 use crate::assets::SantasAssets;
-use crate::constants::{SANTA_ACCELERATION, SANTA_MAX_SPEED, SANTA_TURN_SPEED};
+use crate::constants::{GROUND_PLANE, SANTA_ACCELERATION, SANTA_MAX_SPEED, SANTA_TURN_SPEED};
 use crate::input::{Controller, KeyboardController, KinematicMovement};
 use crate::villages::{NeedsGifts, VillageCenter};
 
@@ -98,13 +98,15 @@ impl Health {
 }
 
 #[derive(Component)]
-pub struct RudolphsRedNose;
+pub struct RudolphsRedNose {
+    pub santa_entity: Entity
+}
 
 fn spawn_santa(
     mut commands: Commands,
     santas_assets: Res<SantasAssets>,
 ) {
-    commands.spawn((
+    let santa_entity = commands.spawn((
         Name::from("Saint Nicholas"),
         Santa {},
         Health::new(100),
@@ -145,25 +147,26 @@ fn spawn_santa(
                     Collider::cuboid(1.2, 1.5, 2.0),
                     Transform::from_xyz(0.0, 0.0, 0.0),
                 ));
-            children.spawn(
-                (
-                    RudolphsRedNose,
-                    SpotLightBundle {
-                        spot_light: SpotLight {
-                            color: Color::rgb(1.0, 0.0, 0.0),
-                            intensity: 1000000.0, // Roughly a 60W non-halogen incandescent bulb
-                            range: 2000.0,
-                            radius: 0.0,
-                            shadows_enabled: true,
-                            inner_angle: std::f32::consts::FRAC_PI_8 / 16.0,
-                            outer_angle: std::f32::consts::FRAC_PI_8 / 8.0,
-                            ..default()
-                        },
-                        transform: Transform::from_xyz(0.0, 0.0, 0.5).looking_at(Vec3::new(0.0, -1.0, 10.0), Vec3::Y),
-                        ..Default::default()
-                    },
-                ));
-        });
+        }).id();
+
+    commands.spawn(
+        (
+            RudolphsRedNose { santa_entity },
+            SpotLightBundle {
+                spot_light: SpotLight {
+                    color: Color::rgb(1.0, 0.0, 0.0),
+                    intensity: 1000000.0, // Roughly a 60W non-halogen incandescent bulb
+                    range: 2000.0,
+                    radius: 0.0,
+                    shadows_enabled: true,
+                    inner_angle: std::f32::consts::FRAC_PI_8 / 16.0,
+                    outer_angle: std::f32::consts::FRAC_PI_8 / 8.0,
+                    ..default()
+                },
+                transform: Transform::from_xyz(0.0, 0.0, 0.5).looking_at(Vec3::new(0.0, -1.0, 10.0), Vec3::Y),
+                ..Default::default()
+            },
+        ));
 }
 
 pub fn fix_model_transforms(
@@ -191,7 +194,7 @@ fn search_for_villages(
 ) {
     if let Ok((santa_entity, santas_position)) = santas_position.get_single() {
         let mut closest_village: Option<(Entity, f32)> = None;
-        for (village_entity, village_transform, village_center) in village_query.iter() {
+        for (village_entity, village_transform, _village_center) in village_query.iter() {
             if closest_village.is_none() {
                 closest_village = Some((village_entity, village_transform.translation.distance(santas_position.translation())));
             } else {
@@ -209,16 +212,19 @@ fn search_for_villages(
 }
 
 fn track_target_village(
-    mut rudolphs_nose: Query<(&mut Transform, &GlobalTransform), With<RudolphsRedNose>>,
-    santa_query: Query<(Entity, &SantaHasTarget), With<Santa>>,
+    mut rudolphs_nose: Query<(&mut Transform, &RudolphsRedNose)>,
+    santa_query: Query<(Entity, &SantaHasTarget, &GlobalTransform), With<Santa>>,
     target_query: Query<(&GlobalTransform, &VillageCenter), (With<NeedsGifts>, Without<RudolphsRedNose>)>,
     mut commands: Commands,
 ) {
-    for (santa_entity, santa_has_target) in santa_query.iter() {
+    for (santa_entity, santa_has_target, santa_global) in santa_query.iter() {
         if let Ok((target_position, _)) = target_query.get(santa_has_target.target) {
-            for(mut rudolph_local, rudolph_global) in rudolphs_nose.iter_mut() {
-                let local_target = rudolph_local.transform_point(target_position.translation());
-                rudolph_local.look_at(local_target, Vec3::Y);
+            for(mut rudolph_local, _) in rudolphs_nose.iter_mut() {
+                rudolph_local.translation = santa_global.translation() + vec3(0.0, 0.0, 0.5);
+
+
+                let target_trans =  (target_position.translation() - rudolph_local.translation).normalize() * 50.0 + rudolph_local.translation;
+                rudolph_local.look_at(vec3(target_trans.x, GROUND_PLANE, target_trans.z), Vec3::Y);
             }
         } else {
             commands.entity(santa_entity).remove::<SantaHasTarget>();

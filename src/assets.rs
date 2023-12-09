@@ -25,8 +25,8 @@ pub struct SantasAssets {
     pub snowball_mesh: Handle<Mesh>,
     pub snowball_material: Handle<StandardMaterial>,
     pub missile: Handle<Scene>,
-    pub sphere_mesh: Handle<Mesh>,
-    pub sphere_material: Handle<StandardMaterial>
+    pub trail_mesh: Handle<Mesh>,
+    pub trail_material: Handle<StandardMaterial>
 }
 
 pub fn load_assets(
@@ -70,22 +70,22 @@ pub fn load_assets(
             ..Default::default()
         }),
         missile: asset_server.load("models/missile.glb#Scene0"),
-        sphere_mesh: meshes.add(
+        trail_mesh: meshes.add(
             shape::UVSphere {
                 radius: 1.0,
                 sectors: 16,
                 stacks: 8,
             }.into()),
-        sphere_material: materials.add(StandardMaterial {
+        trail_material: materials.add(StandardMaterial {
             base_color: Color::Rgba {
                 red: 1.0,
                 green: 1.0,
                 blue: 0.0,
-                alpha: 0.5,},
-            emissive: Color::YELLOW,
-            // metallic: 0.0,
+                alpha: 0.1,},
+            // emissive: Color::YELLOW,
+            // metallic: 1.0,
             // reflectance: 0.0,
-            // diffuse_transmission: 1.0,
+            diffuse_transmission: 1.0,
             alpha_mode: AlphaMode::Blend,
             ..Default::default()
         }),

@@ -2,14 +2,14 @@ use bevy::app::{App, Plugin, Update};
 use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, DespawnRecursiveExt};
 use bevy::math::{Quat, vec3, Vec3};
-use bevy::pbr::{PbrBundle};
-use bevy::prelude::{Commands, Component, Entity, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
+use bevy::pbr::{PbrBundle, PointLight, PointLightBundle};
+use bevy::prelude::{Color, Commands, Component, default, Entity, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
 use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
 use bevy_xpbd_3d::prelude::{LinearVelocity};
 use crate::assets::SantasAssets;
-use crate::constants::{GROUND_PLANE, SAM_ACCELERATION, SAM_MAX_SPEED, SAM_TIME_TO_LIVE};
+use crate::constants::{GROUND_PLANE, SAM_ACCELERATION, SAM_MAX_SPEED, SAM_TIME_TO_LIVE, SAM_TURN_SPEED};
 use crate::input::{CoolDown};
 use crate::santa::{CollisionLayer, ParentEntity, Santa};
 
@@ -189,16 +189,31 @@ fn emit_missile_trail(
 ) {
     for (global_transform, mut emitter) in missiles.iter_mut() {
         if emitter.cool_down(time.delta_seconds()) {
-            let missile_trail = MissileTrail::new(1.0, global_rng.f32(), (global_rng.f32() + 0.5) * 2.5);
+            let missile_trail = MissileTrail::new(0.5, global_rng.f32(), (global_rng.f32() + 0.5) * 2.5);
             commands.spawn((
                 PbrBundle {
-                    mesh: santas_assets.sphere_mesh.clone(),
-                    material: santas_assets.sphere_material.clone(),
+                    mesh: santas_assets.trail_mesh.clone(),
+                    material: santas_assets.trail_material.clone(),
                     transform: Transform::from_xyz(global_transform.translation().x, global_transform.translation().y, global_transform.translation().z).with_scale(Vec3::new(missile_trail.start_scale, missile_trail.start_scale, missile_trail.start_scale)),
                     ..Default::default()
                 },
                 missile_trail
-            ));
+            )).with_children(|children|
+                { // Spawn the child colliders positioned relative to the rigid body
+                    children.spawn((
+                        PointLightBundle {
+                            point_light: PointLight {
+                                color: Color::rgb(global_rng.f32(), global_rng.f32(), 0.0),
+                                intensity: 800.0, // Roughly a 60W non-halogen incandescent bulb
+                                range: 20.0,
+                                radius: 0.0,
+                                shadows_enabled: false,
+                                ..default()
+                            },
+                            ..Default::default()
+                        },
+                    ));
+                });
         }
     }
 }
@@ -233,7 +248,7 @@ fn control_missiles(
                     sam.velocity += sam.acceleration * time.delta_seconds();
                 }
                 let missile_forward = missile_global_transform.forward();
-                let desired_forward = missile_forward.lerp((santa_pos.translation() - missile_global_transform.translation()).normalize(), 0.1);
+                let desired_forward = missile_forward.lerp((santa_pos.translation() - missile_global_transform.translation()).normalize(), SAM_TURN_SPEED);
 
                 sam_velocity.0 = desired_forward * sam.velocity;
                 let q = Quat::from_rotation_arc(missile_forward, desired_forward);

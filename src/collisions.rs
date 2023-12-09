@@ -1,8 +1,8 @@
 use bevy::app::{App, Plugin, Update};
-use bevy::hierarchy::DespawnRecursiveExt;
+use bevy::hierarchy::{BuildChildren, DespawnRecursiveExt};
 use bevy::math::Vec3;
-use bevy::pbr::PbrBundle;
-use bevy::prelude::{Commands, Event, EventReader, EventWriter, GlobalTransform, Query, Res, ResMut, Transform, With, Without};
+use bevy::pbr::{PbrBundle, PointLight, PointLightBundle};
+use bevy::prelude::{Color, Commands, default, Event, EventReader, EventWriter, GlobalTransform, Query, Res, ResMut, Transform, With, Without};
 use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::prelude::CollisionStarted;
 use crate::assets::SantasAssets;
@@ -74,8 +74,8 @@ fn spawn_explosions(
             let missile_trail = MissileTrail::new(0.5 * global_rng.f32(), global_rng.f32(), (global_rng.f32() + 0.5) * 10.0);
             commands.spawn((
                 PbrBundle {
-                    mesh: santas_assets.sphere_mesh.clone(),
-                    material: santas_assets.sphere_material.clone(),
+                    mesh: santas_assets.trail_mesh.clone(),
+                    material: santas_assets.trail_material.clone(),
                     transform: Transform::from_xyz(
                         explosion.position.x + global_rng.f32_normalized() * 5.0,
                         explosion.position.y + global_rng.f32_normalized() * 5.0,
@@ -85,7 +85,22 @@ fn spawn_explosions(
                     ..Default::default()
                 },
                 missile_trail
-            ));
+            )).with_children(|children|
+                { // Spawn the child colliders positioned relative to the rigid body
+                    children.spawn((
+                        PointLightBundle {
+                            point_light: PointLight {
+                                color: Color::rgb(global_rng.f32(), global_rng.f32(), 0.0),
+                                intensity: (global_rng.f32() + 0.5) * 80000.0, // Roughly a 60W non-halogen incandescent bulb
+                                range: 40.0,
+                                radius: 0.0,
+                                shadows_enabled: true,
+                                ..default()
+                            },
+                            ..Default::default()
+                        },
+                    ));
+                });
         }
     }
 }

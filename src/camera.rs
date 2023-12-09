@@ -47,7 +47,7 @@ fn spawn_camera(mut commands: Commands) {
         // },
         // AtmosphereCamera::default(),
         GameCamera {},
-        CameraOffset(Vec3::new(0.0, 15.0, -40.0)),
+        CameraOffset(Vec3::new(0.0, 20.0, -35.0)),
     ));
 }
 
