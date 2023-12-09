@@ -106,7 +106,7 @@ fn spawn_santa(
             ..Default::default()
         },
         KeyboardController {},
-        Controller::new(100.0, 1.0, 60.0),
+        Controller::new(100.0, 10.0, 5.0, 60.0),
         KinematicMovement {},
         Friction::from(0.0),
         AngularDamping(1.0),
@@ -143,7 +143,7 @@ fn spawn_santa(
                             outer_angle: std::f32::consts::FRAC_PI_8 / 4.0,
                             ..default()
                         },
-                        transform: Transform::from_xyz(0.0, 0.0, 0.5).looking_at(Vec3::new(0.0, 0.0, 2.0), Vec3::Y),
+                        transform: Transform::from_xyz(0.0, 0.0, 0.5).looking_at(Vec3::new(0.0, -1.0, 2.0), Vec3::Y),
                         ..Default::default()
                     },
                 ));

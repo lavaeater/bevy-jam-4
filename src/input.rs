@@ -83,6 +83,7 @@ pub struct Controller {
     pub directions: HashSet<ControlDirection>,
     pub has_thrown: bool,
     pub speed: f32,
+    pub acceleration: f32,
     pub max_speed: f32,
     pub turn_speed: f32,
     pub max_turn_speed: f32,
@@ -91,13 +92,14 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn new(speed: f32, turn_speed: f32, rate_of_fire_per_minute: f32) -> Self {
+    pub fn new(speed: f32, acceleration: f32, turn_speed: f32, rate_of_fire_per_minute: f32) -> Self {
         Self {
             triggers: HashSet::default(),
             rotations: HashSet::default(),
             directions: HashSet::default(),
             has_thrown: false,
             speed,
+            acceleration,
             max_speed: speed,
             turn_speed,
             max_turn_speed: turn_speed,
@@ -214,13 +216,13 @@ pub fn dynamic_movement(
 
 
 pub fn kinematic_movement(
-    mut query: Query<(&mut LinearVelocity, &mut AngularVelocity, &Rotation, &Controller), With<KinematicMovement>>,
+    mut query: Query<(&mut LinearVelocity, &mut AngularVelocity, &Rotation, &mut Controller), With<KinematicMovement>>,
 ) {
     for (
         mut linear_velocity,
         mut angular_velocity,
         rotation,
-        controller) in query.iter_mut() {
+        mut controller) in query.iter_mut() {
         let mut force = Vector3::ZERO;
         let mut torque = Vector3::ZERO;
 
@@ -237,6 +239,13 @@ pub fn kinematic_movement(
             torque.y = -1.0;
         }
         force = rotation.mul_vec3(force);
+
+
+        controller.speed += controller.acceleration;
+        if controller.speed > controller.max_speed {
+            controller.speed = controller.max_speed;
+        }
+
         linear_velocity.0 = force * controller.speed;
         angular_velocity.0 = torque * controller.turn_speed;
     }

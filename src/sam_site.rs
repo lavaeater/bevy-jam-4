@@ -268,7 +268,7 @@ fn fire_sam(
             commands
                 .spawn((
                     Name::from("Surface2Air, Bro!"),
-                    SurfaceToAirMissile::new(20.0, 25.0, 25.0, 100.0),
+                    SurfaceToAirMissile::new(10.0, 25.0, 25.0, 100.0),
                     SceneBundle {
                         scene: santas_assets.missile.clone(),
                         transform: t,
