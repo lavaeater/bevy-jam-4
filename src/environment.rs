@@ -2,7 +2,7 @@ use bevy::app::{App, Plugin, Startup};
 use bevy::core::Name;
 use bevy::math::{EulerRot, Quat};
 use bevy::pbr::{CascadeShadowConfigBuilder, DirectionalLight, DirectionalLightBundle};
-use bevy::prelude::{Commands, default, Transform};
+use bevy::prelude::{Color, Commands, default, Transform};
 
 pub struct EnvironmentPlugin;
 
@@ -49,7 +49,8 @@ pub fn spawn_lights(
         Name::from("Directional Light"),
         DirectionalLightBundle {
             directional_light: DirectionalLight {
-                illuminance: 0.1,
+                color: Color::rgb(0.9, 0.9, 0.9),
+                illuminance: 1.0,
                 shadows_enabled: true,
                 ..default()
             },

@@ -3,7 +3,7 @@ use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{EulerRot, Quat, Vec3};
 use bevy::pbr::{SpotLight, SpotLightBundle};
-use bevy::prelude::{Color, Commands, Component, Entity, Query, Res, Transform, Visibility, With};
+use bevy::prelude::{Color, Commands, Component, Entity, Query, Res, Transform, With};
 use bevy::scene::SceneBundle;
 use bevy::utils::default;
 use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
