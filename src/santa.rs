@@ -151,15 +151,15 @@ fn spawn_santa(
                     SpotLightBundle {
                         spot_light: SpotLight {
                             color: Color::rgb(1.0, 0.0, 0.0),
-                            intensity: 8000000.0, // Roughly a 60W non-halogen incandescent bulb
+                            intensity: 1000000.0, // Roughly a 60W non-halogen incandescent bulb
                             range: 2000.0,
                             radius: 0.0,
                             shadows_enabled: true,
-                            inner_angle: std::f32::consts::FRAC_PI_8 / 8.0,
-                            outer_angle: std::f32::consts::FRAC_PI_8 / 4.0,
+                            inner_angle: std::f32::consts::FRAC_PI_8 / 16.0,
+                            outer_angle: std::f32::consts::FRAC_PI_8 / 8.0,
                             ..default()
                         },
-                        transform: Transform::from_xyz(0.0, 0.0, 0.5).looking_at(Vec3::new(0.0, -1.0, 2.0), Vec3::Y),
+                        transform: Transform::from_xyz(0.0, 0.0, 0.5).looking_at(Vec3::new(0.0, -1.0, 10.0), Vec3::Y),
                         ..Default::default()
                     },
                 ));
@@ -214,5 +214,5 @@ fn track_target_village(
     target_query: Query<(&GlobalTransform, &VillageCenter), (With<NeedsGifts>, Without<RudolphsRedNose>)>,
     mut commands: Commands,
 ) {
-  
+
 }

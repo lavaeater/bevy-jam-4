@@ -115,9 +115,8 @@ fn load_level(
                     needs_gifts_count: number_of_houses,
                 },
                 NeedsGifts,
-                PbrBundle {
-                    mesh: level_assets.center_mesh.clone(),
-                    material: level_assets.center_material.clone(),
+                SceneBundle {
+                    scene: level_assets.christmas_tree.clone(),
                     transform: Transform::from_translation(village_center_position),
                     ..default()
                 }
@@ -179,8 +178,7 @@ pub struct LevelAssets {
     pub house_large: Handle<Scene>,
     pub ground_mesh: Handle<Mesh>,
     pub ground_material: Handle<StandardMaterial>,
-    pub center_mesh: Handle<Mesh>,
-    pub center_material: Handle<StandardMaterial>,
+    pub christmas_tree: Handle<Scene>,
 }
 
 pub fn load_level_assets(
@@ -198,11 +196,6 @@ pub fn load_level_assets(
             base_color: Color::rgb(0.0, 0.5, 0.0),
             ..default()
         }),
-        center_mesh: meshes.add(Mesh::from(shape::UVSphere { radius: 15.0, stacks: 16, sectors: 8 })),
-        center_material: materials.add(StandardMaterial {
-            base_color: Color::rgb(1.0, 0.0, 0.0),
-            emissive: Color::rgb(1.0, 0.0, 0.0),
-            ..default()
-        }),
+        christmas_tree:asset_server.load("models/christmas-tree.glb#Scene0"),
     }
 }
