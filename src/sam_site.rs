@@ -271,14 +271,14 @@ fn fire_sam(
 
             let sam_site_position = global_transform.translation();
 
-            let missile_direction = (santa_pos.translation() - sam_site_position).normalize();
+            let missile_direction = -Vec3::Y;
             let mut t = Transform::from_xyz(
                 sam_site_position.x,
-                sam_site_position.y,
+                sam_site_position.y + 1.0,
                 sam_site_position.z);
             t.rotation = Quat::from_rotation_arc(vec3(0.0, 0.0, 1.0), missile_direction);
             t.scale = Vec3::new(0.25, 0.25, 0.25);
-            let missile_velocity = missile_direction;
+            let missile_velocity = missile_direction * 10.0;
 
             commands
                 .spawn((
@@ -304,20 +304,6 @@ fn fire_sam(
                         ParentEntity(children.parent_entity()),
                         Collider::ball(1.0),
                     ));
-                    // children.spawn(
-                    //     SpotLightBundle {
-                    //         transform: Transform::from_xyz(0.0, 0.0, -0.5)
-                    //             .looking_at(t.back(), t.up()),
-                    //         spot_light: SpotLight {
-                    //             intensity: 200000.0, // lumens
-                    //             color: Color::WHITE,
-                    //             shadows_enabled: true,
-                    //             inner_angle: PI / 4.0 * 0.85,
-                    //             outer_angle: PI / 4.0,
-                    //             ..default()
-                    //         },
-                    //         ..default()
-                    //     });
                 });
         }
     }
