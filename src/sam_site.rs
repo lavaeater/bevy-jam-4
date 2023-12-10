@@ -100,6 +100,9 @@ impl SurfaceToAirMissile {
 }
 
 #[derive(Component)]
+pub struct SamTarget(pub Entity);
+
+#[derive(Component)]
 pub struct SamChild;
 
 impl CoolDown for SurfaceToAirMissile {
@@ -233,13 +236,13 @@ fn control_missile_trail(
 }
 
 fn control_missiles(
-    mut missiles: Query<(Entity, &GlobalTransform, &mut Transform, &mut LinearVelocity, &mut SurfaceToAirMissile)>,
-    santa_position: Query<&GlobalTransform, With<Santa>>,
+    mut missiles: Query<(Entity, &GlobalTransform, &mut Transform, &mut LinearVelocity, &mut SurfaceToAirMissile, &SamTarget)>,
+    target_position: Query<&GlobalTransform>,
     time: Res<Time>,
     mut commands: Commands,
 ) {
-    if let Ok(santa_pos) = santa_position.get_single() {
-        for (entity, missile_global_transform, mut transform, mut sam_velocity, mut sam) in missiles.iter_mut() {
+    for (entity, missile_global_transform, mut transform, mut sam_velocity, mut sam, sam_target) in missiles.iter_mut() {
+        if let Ok(target_global_transform) = target_position.get(sam_target.0) {
             if sam.cool_down(time.delta_seconds()) {
                 commands.entity(entity).despawn_recursive();
                 // Spawn explosion, bro
@@ -248,7 +251,7 @@ fn control_missiles(
                     sam.velocity += sam.acceleration * time.delta_seconds();
                 }
                 let missile_forward = missile_global_transform.forward();
-                let desired_forward = missile_forward.lerp((santa_pos.translation() - missile_global_transform.translation()).normalize(), SAM_TURN_SPEED);
+                let desired_forward = missile_forward.lerp((target_global_transform.translation() - missile_global_transform.translation()).normalize(), SAM_TURN_SPEED);
 
                 sam_velocity.0 = desired_forward * sam.velocity;
                 let q = Quat::from_rotation_arc(missile_forward, desired_forward);
@@ -261,13 +264,13 @@ fn control_missiles(
 fn fire_sam(
     mut commands: Commands,
     mut sam_sites: Query<(&mut SamSite, &GlobalTransform)>,
-    santa_position: Query<&GlobalTransform, With<Santa>>,
+    so_this_is_santa: Query<Entity, With<Santa>>,
     santas_assets: Res<SantasAssets>,
     time: Res<Time>,
 ) {
     for (mut sam_site, global_transform) in sam_sites.iter_mut() {
         if sam_site.cool_down(time.delta_seconds()) {
-            let santa_pos = santa_position.get_single().unwrap();
+            let santa_entity = so_this_is_santa.get_single().unwrap();
 
             let sam_site_position = global_transform.translation();
 
@@ -284,6 +287,7 @@ fn fire_sam(
                 .spawn((
                     Name::from("Surface2Air, Bro!"),
                     SurfaceToAirMissile::new(SAM_TIME_TO_LIVE, SAM_ACCELERATION, 10.0, SAM_MAX_SPEED),
+                    SamTarget(santa_entity),
                     SceneBundle {
                         scene: santas_assets.missile.clone(),
                         transform: t,
