@@ -11,7 +11,7 @@ use bevy_xpbd_3d::prelude::PhysicsLayer;
 use crate::assets::SantasAssets;
 use crate::constants::{GROUND_PLANE, SAM_ACCELERATION, SAM_MAX_SPEED, SAM_TIME_TO_LIVE, SANTA_ACCELERATION, SANTA_MAX_SPEED, SANTA_MISSILE_RANGE, SANTA_TURN_SPEED};
 use crate::input::{Controller, CoolDown, KeyboardController, KinematicMovement};
-use crate::sam_site::{MissileTrailEmitter, SamChild, SamTarget, SurfaceToAirMissile};
+use crate::sam_site::{MissileTrailEmitter, SamTarget, SurfaceToAirMissile};
 use crate::villages::{House, NeedsGifts};
 
 pub struct SantaPlugin;
@@ -300,7 +300,7 @@ fn track_target(
 
 fn toggle_santa_shooting(
     mut target_er: EventReader<TargetEvent>,
-    mut santa_query: Query<(&mut SantaHasTarget), With<Santa>>,
+    mut santa_query: Query<&mut SantaHasTarget, With<Santa>>,
 ) {
     for target_event in target_er.read() {
         match target_event.0 {
@@ -318,6 +318,9 @@ fn toggle_santa_shooting(
         }
     }
 }
+
+#[derive(Component)]
+pub struct GiftChild;
 
 fn shoot_gifts_at_target(
     mut santa_query: Query<(Entity, &mut SantaHasTarget, &GlobalTransform), With<Santa>>,
@@ -362,7 +365,7 @@ fn shoot_gifts_at_target(
                 )).with_children(|children|
                 { // Spawn the child colliders positioned relative to the rigid body
                     children.spawn((
-                        SamChild,
+                        GiftChild,
                         ParentEntity(children.parent_entity()),
                         Collider::ball(1.0),
                     ));

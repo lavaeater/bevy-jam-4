@@ -3,7 +3,7 @@ use belly::core::eml::Params;
 use belly::prelude::*;
 use bevy::prelude::*;
 use bevy::app::{App, Plugin, Startup};
-use bevy::prelude::{Camera2dBundle, Commands, Entity, Event, EventReader, ResMut};
+use bevy::prelude::{Commands, Entity, Event, EventReader};
 use crate::camera::GameCamera;
 use crate::santa::{TargetEvent, TargetEventTypes};
 
@@ -33,15 +33,6 @@ impl Plugin for UiPlugin {
 #[derive(Resource)]
 pub struct UiResources {
     pub target_color: Color,
-}
-
-
-pub fn spawn_ui_camera(
-    mut commands: Commands,
-) {
-    commands.spawn(
-        Camera2dBundle::default()
-    );
 }
 
 pub fn spawn_ui(mut commands: Commands) {

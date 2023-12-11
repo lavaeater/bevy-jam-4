@@ -7,7 +7,7 @@ use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::prelude::CollisionStarted;
 use crate::assets::SantasAssets;
 use crate::sam_site::{MissileTrail, SamChild, SurfaceToAirMissile};
-use crate::santa::{Health, ParentEntity, Santa, SantaChild};
+use crate::santa::{GiftChild, Health, ParentEntity, Santa, SantaChild};
 use crate::villages::{HouseChild, HouseEvent, HouseEventType};
 
 pub struct CollisionsPlugin;
@@ -17,7 +17,8 @@ impl Plugin for CollisionsPlugin {
         app
             .add_event::<SpawnExplosionAt>()
             .add_systems(Update, (
-                collision_handler,
+                missile_santa_collision_handler,
+                gift_house_collision_handler,
                 spawn_explosions
             ))
         ;
@@ -29,7 +30,7 @@ pub struct SpawnExplosionAt {
     pub position: Vec3,
 }
 
-fn collision_handler(
+fn missile_santa_collision_handler(
     mut collision_reader: EventReader<CollisionStarted>,
     mut explosion_ew: EventWriter<SpawnExplosionAt>,
     mut commands: Commands,
@@ -37,9 +38,7 @@ fn collision_handler(
     missile_query: Query<(&SurfaceToAirMissile, &GlobalTransform)>,
     santa_child_query: Query<&ParentEntity, (With<SantaChild>, Without<SamChild>)>,
     missile_child_query: Query<&ParentEntity, (With<SamChild>, Without<SantaChild>)>,
-    house_child_query: Query<&ParentEntity, (With<HouseChild>, Without<SamChild>)>,
     mut global_rng: ResMut<GlobalRng>,
-    mut house_ew: EventWriter<HouseEvent>,
 ) {
     for collision in collision_reader.read() {
         if missile_child_query.contains(collision.0) || missile_child_query.contains(collision.1) {
@@ -60,8 +59,24 @@ fn collision_handler(
                 if let Ok(mut santa_health) = santa_query.get_mut(santa_entity) {
                     santa_health.health -= global_rng.i32(5..=15);
                 }
-            } else if house_child_query.contains(collision.0) || house_child_query.contains(collision.1) {
-                let (house_entity, missile_entity) = if house_child_query.contains(collision.0) {
+            }
+        }
+    }
+}
+
+fn gift_house_collision_handler(
+    mut collision_reader: EventReader<CollisionStarted>,
+    mut explosion_ew: EventWriter<SpawnExplosionAt>,
+    mut commands: Commands,
+    missile_query: Query<(&SurfaceToAirMissile, &GlobalTransform)>,
+    missile_child_query: Query<&ParentEntity, (With<GiftChild>, Without<HouseChild>)>,
+    house_child_query: Query<&ParentEntity, (With<HouseChild>, Without<GiftChild>)>,
+    mut house_ew: EventWriter<HouseEvent>,
+) {
+    for collision in collision_reader.read() {
+        if missile_child_query.contains(collision.0) || missile_child_query.contains(collision.1) {
+            if house_child_query.contains(collision.0) || house_child_query.contains(collision.1) {
+                let (house_child_entity, missile_entity) = if house_child_query.contains(collision.0) {
                     (house_child_query.get(collision.0).unwrap().0, missile_child_query.get(collision.1).unwrap().0)
                 } else {
                     (house_child_query.get(collision.1).unwrap().0, missile_child_query.get(collision.0).unwrap().0)
@@ -73,8 +88,7 @@ fn collision_handler(
                 }
                 commands.entity(missile_entity).despawn_recursive();
 
-                house_ew.send(HouseEvent(HouseEventType::ReceivedGifts(house_entity)));
-
+                house_ew.send(HouseEvent(HouseEventType::ReceivedGifts(house_child_entity)));
             }
         }
     }

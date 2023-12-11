@@ -10,7 +10,7 @@ use bevy::utils::default;
 use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
 use crate::constants::GROUND_PLANE;
-use crate::santa::{CollisionLayer, FixChildTransform, NeedsTransformFix};
+use crate::santa::{CollisionLayer, FixChildTransform, NeedsTransformFix, ParentEntity};
 
 pub struct VillagePlugin;
 
@@ -174,6 +174,7 @@ fn load_level(
                 { // Spawn the child colliders positioned relative to the rigid body
                     children.spawn(
                         (
+                            ParentEntity(children.parent_entity()),
                             HouseChild,
                             NeedsTransformFix,
                             Collider::cuboid(10.0, 10.0, 10.0),
