@@ -11,7 +11,7 @@ use bevy_xpbd_3d::prelude::PhysicsLayer;
 use crate::assets::SantasAssets;
 use crate::constants::{GROUND_PLANE, SANTA_ACCELERATION, SANTA_MAX_SPEED, SANTA_TURN_SPEED};
 use crate::input::{Controller, KeyboardController, KinematicMovement};
-use crate::villages::{NeedsGifts, VillageCenter};
+use crate::villages::{House, NeedsGifts, VillageCenter};
 
 pub struct SantaPlugin;
 
@@ -25,8 +25,8 @@ impl Plugin for SantaPlugin {
             .add_systems(
                 Update, (
                     fix_model_transforms,
-                    search_for_villages,
-                    track_target_village
+                    search_for_targets,
+                    track_target
                 ),
             )
         ;
@@ -188,38 +188,63 @@ pub fn fix_model_transforms(
     }
 }
 
-fn search_for_villages(
-    village_query: Query<(Entity, &Transform, &VillageCenter), With<NeedsGifts>>,
+// fn search_for_villages(
+//     village_query: Query<(Entity, &Transform, &VillageCenter), With<NeedsGifts>>,
+//     santas_position: Query<(Entity, &GlobalTransform), With<SantaNeedsTarget>>,
+//     mut commands: Commands,
+// ) {
+//     if let Ok((santa_entity, santas_position)) = santas_position.get_single() {
+//         let mut closest_village: Option<(Entity, f32)> = None;
+//         for (village_entity, village_transform, _village_center) in village_query.iter() {
+//             if closest_village.is_none() {
+//                 closest_village = Some((village_entity, village_transform.translation.distance(santas_position.translation())));
+//             } else {
+//                 let distance = village_transform.translation.distance(santas_position.translation());
+//                 if distance < closest_village.unwrap().1 {
+//                     closest_village = Some((village_entity, distance));
+//                 }
+//             }
+//         }
+//         if let Some((close_village, _)) = closest_village {
+//             commands.entity(santa_entity).insert(SantaHasTarget { target: close_village });
+//             commands.entity(santa_entity).remove::<SantaNeedsTarget>();
+//         }
+//     }
+// }
+
+
+fn search_for_targets(
+    house_query: Query<(Entity, &Transform, &House), With<NeedsGifts>>,
     santas_position: Query<(Entity, &GlobalTransform), With<SantaNeedsTarget>>,
     mut commands: Commands,
 ) {
     if let Ok((santa_entity, santas_position)) = santas_position.get_single() {
-        let mut closest_village: Option<(Entity, f32)> = None;
-        for (village_entity, village_transform, _village_center) in village_query.iter() {
-            if closest_village.is_none() {
-                closest_village = Some((village_entity, village_transform.translation.distance(santas_position.translation())));
+        let mut closest_house: Option<(Entity, f32)> = None;
+        for (house_entity, house_transform, _house) in house_query.iter() {
+            if closest_house.is_none() {
+                closest_house = Some((house_entity, house_transform.translation.distance(santas_position.translation())));
             } else {
-                let distance = village_transform.translation.distance(santas_position.translation());
-                if distance < closest_village.unwrap().1 {
-                    closest_village = Some((village_entity, distance));
+                let distance = house_transform.translation.distance(santas_position.translation());
+                if distance < closest_house.unwrap().1 {
+                    closest_house = Some((house_entity, distance));
                 }
             }
         }
-        if let Some((close_village, _)) = closest_village {
-            commands.entity(santa_entity).insert(SantaHasTarget { target: close_village });
+        if let Some((close_house, _)) = closest_house {
+            commands.entity(santa_entity).insert(SantaHasTarget { target: close_house });
             commands.entity(santa_entity).remove::<SantaNeedsTarget>();
         }
     }
 }
 
-fn track_target_village(
+fn track_target(
     mut rudolphs_nose: Query<(&mut Transform, &RudolphsRedNose)>,
     santa_query: Query<(Entity, &SantaHasTarget, &GlobalTransform), With<Santa>>,
-    target_query: Query<(&GlobalTransform, &VillageCenter), (With<NeedsGifts>, Without<RudolphsRedNose>)>,
+    target_query: Query<&GlobalTransform, (With<NeedsGifts>, Without<RudolphsRedNose>)>,
     mut commands: Commands,
 ) {
     for (santa_entity, santa_has_target, santa_global) in santa_query.iter() {
-        if let Ok((target_position, _)) = target_query.get(santa_has_target.target) {
+        if let Ok(target_position) = target_query.get(santa_has_target.target) {
             for(mut rudolph_local, _) in rudolphs_nose.iter_mut() {
                 rudolph_local.translation = santa_global.translation() + vec3(0.0, 0.0, 0.5);
 

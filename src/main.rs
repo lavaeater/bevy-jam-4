@@ -8,12 +8,13 @@ mod sam_site;
 mod collisions;
 mod villages;
 mod constants;
+mod ui;
 
 use bevy::{prelude::*};
 use bevy::asset::AssetMetaCheck;
 use bevy::window::WindowResolution;
 use bevy_turborand::prelude::RngPlugin;
-use bevy_xpbd_3d::plugins::{PhysicsDebugPlugin, PhysicsPlugins};
+use bevy_xpbd_3d::plugins::{PhysicsPlugins};
 use crate::assets::AssetsPlugin;
 use crate::camera::CameraPlugin;
 use crate::collisions::CollisionsPlugin;
