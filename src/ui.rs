@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use bevy::app::{App, Plugin, Startup};
 use bevy::prelude::{Camera2dBundle, Commands, Entity, Event, EventReader, ResMut};
 use crate::camera::GameCamera;
+use crate::santa::{TargetEvent, TargetEventTypes};
 
 pub struct UiPlugin;
 
@@ -15,6 +16,11 @@ impl Plugin for UiPlugin {
             .add_systems(
                 Startup,
                 spawn_ui,
+            )
+            .add_systems(
+                Update,(
+                toggle_target_indicator,
+                fellow_system)
             )
         ;
     }
@@ -126,17 +132,24 @@ pub struct AddHealthBar {
     pub name: &'static str,
 }
 
-pub fn add_health_bar(
+pub fn toggle_target_indicator(
     mut elements: Elements,
-    mut add_health_bar_er: EventReader<AddHealthBar>,
+    mut target_er: EventReader<TargetEvent>,
 ) {
-    for add_health_bar in &mut add_health_bar_er.read() {
-        let erp = add_health_bar.entity;
-        elements.select("body").add_child(eml! {
-                <fellow target=erp>
-                    <span><progressbar s:width="50px" maximum=100.0 minimum=0.0 bind:value=from!(erp, Health:as_f32()) s:color="#00ff00" /></span>
+    for target_aqcuired in &mut target_er.read() {
+        match target_aqcuired.0 {
+            TargetEventTypes::TargetAqcuired(house) => {
+                elements.select("body").add_child(eml! {
+                <fellow target=house>
+                    <span><label s:color="#ff0000" value="TARGET" /></span>
                 </fellow>
         });
+            }
+            TargetEventTypes::TargetLost => {
+
+            }
+        }
+
     }
 }
 

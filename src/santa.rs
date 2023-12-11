@@ -3,7 +3,7 @@ use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{EulerRot, Quat, Vec3, vec3};
 use bevy::pbr::{SpotLight, SpotLightBundle};
-use bevy::prelude::{Color, Commands, Component, Entity, GlobalTransform, Query, Res, Transform, With, Without};
+use bevy::prelude::{Color, Commands, Component, Entity, Event, EventWriter, GlobalTransform, Query, Res, Transform, With, Without};
 use bevy::scene::SceneBundle;
 use bevy::utils::default;
 use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
@@ -11,13 +11,14 @@ use bevy_xpbd_3d::prelude::PhysicsLayer;
 use crate::assets::SantasAssets;
 use crate::constants::{GROUND_PLANE, SANTA_ACCELERATION, SANTA_MAX_SPEED, SANTA_TURN_SPEED};
 use crate::input::{Controller, KeyboardController, KinematicMovement};
-use crate::villages::{House, NeedsGifts, VillageCenter};
+use crate::villages::{House, NeedsGifts};
 
 pub struct SantaPlugin;
 
 impl Plugin for SantaPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_event::<TargetEvent>()
             .add_systems(
                 PostStartup, (
                     spawn_santa,
@@ -212,11 +213,19 @@ pub fn fix_model_transforms(
 //     }
 // }
 
+pub enum TargetEventTypes {
+    TargetAqcuired(Entity),
+    TargetLost,
+}
+
+#[derive(Event)]
+pub struct TargetEvent(pub TargetEventTypes);
 
 fn search_for_targets(
     house_query: Query<(Entity, &Transform, &House), With<NeedsGifts>>,
     santas_position: Query<(Entity, &GlobalTransform), With<SantaNeedsTarget>>,
     mut commands: Commands,
+    mut target_ew: EventWriter<TargetEvent>,
 ) {
     if let Ok((santa_entity, santas_position)) = santas_position.get_single() {
         let mut closest_house: Option<(Entity, f32)> = None;
@@ -233,6 +242,7 @@ fn search_for_targets(
         if let Some((close_house, _)) = closest_house {
             commands.entity(santa_entity).insert(SantaHasTarget { target: close_house });
             commands.entity(santa_entity).remove::<SantaNeedsTarget>();
+            target_ew.send(TargetEvent(TargetEventTypes::TargetAqcuired(close_house)));
         }
     }
 }
@@ -242,6 +252,7 @@ fn track_target(
     santa_query: Query<(Entity, &SantaHasTarget, &GlobalTransform), With<Santa>>,
     target_query: Query<&GlobalTransform, (With<NeedsGifts>, Without<RudolphsRedNose>)>,
     mut commands: Commands,
+    mut target_ew: EventWriter<TargetEvent>,
 ) {
     for (santa_entity, santa_has_target, santa_global) in santa_query.iter() {
         if let Ok(target_position) = target_query.get(santa_has_target.target) {
@@ -255,6 +266,7 @@ fn track_target(
         } else {
             commands.entity(santa_entity).remove::<SantaHasTarget>();
             commands.entity(santa_entity).insert(SantaNeedsTarget);
+            target_ew.send(TargetEvent(TargetEventTypes::TargetLost));
         }
     }
 }

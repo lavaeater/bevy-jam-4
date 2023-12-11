@@ -23,6 +23,7 @@ use crate::input::InputPlugin;
 use crate::sam_site::SamSitePlugin;
 use crate::santa::SantaPlugin;
 use crate::snow::SnowPlugin;
+use crate::ui::UiPlugin;
 use crate::villages::VillagePlugin;
 
 fn main() {
@@ -58,6 +59,7 @@ impl Plugin for GamePlugin {
             .add_plugins(InputPlugin)
             .add_plugins(SamSitePlugin)
             .add_plugins(CollisionsPlugin)
+            .add_plugins(UiPlugin)
             // .add_plugins(PhysicsDebugPlugin::default())
         ;
     }
