@@ -14,7 +14,7 @@ use bevy::{prelude::*};
 use bevy::asset::AssetMetaCheck;
 use bevy::window::WindowResolution;
 use bevy_turborand::prelude::RngPlugin;
-use bevy_xpbd_3d::plugins::{PhysicsPlugins};
+use bevy_xpbd_3d::plugins::{PhysicsDebugPlugin, PhysicsPlugins};
 use crate::assets::AssetsPlugin;
 use crate::camera::CameraPlugin;
 use crate::collisions::CollisionsPlugin;
@@ -60,7 +60,7 @@ impl Plugin for GamePlugin {
             .add_plugins(SamSitePlugin)
             .add_plugins(CollisionsPlugin)
             .add_plugins(UiPlugin)
-            // .add_plugins(PhysicsDebugPlugin::default())
+            .add_plugins(PhysicsDebugPlugin::default())
         ;
     }
 }

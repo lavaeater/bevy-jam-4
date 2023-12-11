@@ -24,6 +24,7 @@ impl Plugin for VillagePlugin {
                 lives: 3,
             })
             .add_event::<LoadLevel>()
+            .add_event::<HouseEvent>()
             .add_systems(Startup,
                          load_level_assets,
             )
@@ -42,6 +43,13 @@ impl Plugin for VillagePlugin {
 
 #[derive(Event)]
 pub struct LoadLevel(u32);
+
+#[derive(Event)]
+pub struct HouseEvent(pub HouseEventType);
+
+pub enum HouseEventType {
+    ReceivedGifts(Entity),
+}
 
 #[derive(Resource)]
 pub struct GameTracker {
@@ -98,6 +106,9 @@ fn create_ground(
         },
     ));
 }
+
+#[derive(Component)]
+pub struct HouseChild;
 
 fn load_level(
     mut commands: Commands,
@@ -163,8 +174,9 @@ fn load_level(
                 { // Spawn the child colliders positioned relative to the rigid body
                     children.spawn(
                         (
+                            HouseChild,
                             NeedsTransformFix,
-                            Collider::cuboid(5.0, 50.0, 5.0),
+                            Collider::cuboid(10.0, 10.0, 10.0),
                             Transform::from_xyz(0.0, 0.0, 0.0),
                         ));
                 });

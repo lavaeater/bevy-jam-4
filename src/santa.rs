@@ -3,14 +3,15 @@ use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, Children};
 use bevy::math::{EulerRot, Quat, Vec3, vec3};
 use bevy::pbr::{SpotLight, SpotLightBundle};
-use bevy::prelude::{Color, Commands, Component, Entity, Event, EventWriter, GlobalTransform, Query, Res, Transform, With, Without};
+use bevy::prelude::{Color, Commands, Component, Entity, Event, EventReader, EventWriter, GlobalTransform, Query, Res, Time, Transform, With, Without};
 use bevy::scene::SceneBundle;
 use bevy::utils::default;
-use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
+use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, LinearVelocity, RigidBody};
 use bevy_xpbd_3d::prelude::PhysicsLayer;
 use crate::assets::SantasAssets;
-use crate::constants::{GROUND_PLANE, SANTA_ACCELERATION, SANTA_MAX_SPEED, SANTA_MISSILE_RANGE, SANTA_TURN_SPEED};
-use crate::input::{Controller, KeyboardController, KinematicMovement};
+use crate::constants::{GROUND_PLANE, SAM_ACCELERATION, SAM_MAX_SPEED, SAM_TIME_TO_LIVE, SANTA_ACCELERATION, SANTA_MAX_SPEED, SANTA_MISSILE_RANGE, SANTA_TURN_SPEED};
+use crate::input::{Controller, CoolDown, KeyboardController, KinematicMovement};
+use crate::sam_site::{MissileTrailEmitter, SamChild, SamTarget, SurfaceToAirMissile};
 use crate::villages::{House, NeedsGifts};
 
 pub struct SantaPlugin;
@@ -27,7 +28,9 @@ impl Plugin for SantaPlugin {
                 Update, (
                     fix_model_transforms,
                     search_for_targets,
-                    track_target
+                    track_target,
+                    toggle_santa_shooting,
+                    shoot_gifts_at_target,
                 ),
             )
         ;
@@ -79,7 +82,21 @@ pub struct SantaNeedsTarget;
 #[derive(Component)]
 pub struct SantaHasTarget {
     pub target: Entity,
-    pub in_range: bool,
+    pub is_shooting: bool,
+    pub cool_down: f32,
+    pub rate_of_fire_per_minute: f32
+}
+
+impl CoolDown for SantaHasTarget {
+    fn cool_down(&mut self, delta: f32) -> bool {
+        self.cool_down -= delta;
+        if self.cool_down <= 0.0 {
+            self.cool_down = 60.0 / self.rate_of_fire_per_minute;
+            true
+        } else {
+            false
+        }
+    }
 }
 
 
@@ -101,7 +118,7 @@ impl Health {
 
 #[derive(Component)]
 pub struct RudolphsRedNose {
-    pub santa_entity: Entity
+    pub santa_entity: Entity,
 }
 
 fn spawn_santa(
@@ -217,8 +234,8 @@ pub fn fix_model_transforms(
 pub enum TargetEventTypes {
     Acquired(Entity),
     Lost,
-    InRange,
-    OutOfRange,
+    StartShooting,
+    StopShooting,
 }
 
 #[derive(Event)]
@@ -243,7 +260,7 @@ fn search_for_targets(
             }
         }
         if let Some((close_house, _)) = closest_house {
-            commands.entity(santa_entity).insert(SantaHasTarget { target: close_house, in_range: false });
+            commands.entity(santa_entity).insert(SantaHasTarget { target: close_house, is_shooting: false, cool_down: 0.0, rate_of_fire_per_minute: 20.0 });
             commands.entity(santa_entity).remove::<SantaNeedsTarget>();
             target_ew.send(TargetEvent(TargetEventTypes::Acquired(close_house)));
         }
@@ -252,33 +269,104 @@ fn search_for_targets(
 
 fn track_target(
     mut rudolphs_nose: Query<(&mut Transform, &RudolphsRedNose)>,
-    mut santa_query: Query<(Entity, &mut SantaHasTarget, &GlobalTransform), With<Santa>>,
+    mut santa_query: Query<(Entity, &SantaHasTarget, &GlobalTransform), With<Santa>>,
     target_query: Query<&GlobalTransform, (With<NeedsGifts>, Without<RudolphsRedNose>)>,
     mut commands: Commands,
     mut target_ew: EventWriter<TargetEvent>,
 ) {
-    for (santa_entity, mut santa_has_target, santa_global) in santa_query.iter_mut() {
+    for (santa_entity, santa_has_target, santa_global) in santa_query.iter_mut() {
         if let Ok(target_position) = target_query.get(santa_has_target.target) {
-            for(mut rudolph_local, _) in rudolphs_nose.iter_mut() {
+            for (mut rudolph_local, _) in rudolphs_nose.iter_mut() {
                 rudolph_local.translation = santa_global.translation() + vec3(0.0, 0.0, 0.5);
 
                 let vector_to_target = target_position.translation() - rudolph_local.translation;
                 let distance = vector_to_target.length();
-                if distance < SANTA_MISSILE_RANGE && !santa_has_target.in_range {
-                    santa_has_target.in_range = true;
-                    target_ew.send(TargetEvent(TargetEventTypes::InRange));
+                if distance < SANTA_MISSILE_RANGE {
+                    target_ew.send(TargetEvent(TargetEventTypes::StartShooting));
                 } else {
-                    santa_has_target.in_range = false;
-                    target_ew.send(TargetEvent(TargetEventTypes::OutOfRange));
+                    target_ew.send(TargetEvent(TargetEventTypes::StopShooting));
                 }
 
-                let target_trans =  (vector_to_target).normalize() * 50.0 + rudolph_local.translation;
+                let target_trans = (vector_to_target).normalize() * 50.0 + rudolph_local.translation;
                 rudolph_local.look_at(vec3(target_trans.x, GROUND_PLANE, target_trans.z), Vec3::Y);
             }
         } else {
             commands.entity(santa_entity).remove::<SantaHasTarget>();
             commands.entity(santa_entity).insert(SantaNeedsTarget);
             target_ew.send(TargetEvent(TargetEventTypes::Lost));
+        }
+    }
+}
+
+fn toggle_santa_shooting(
+    mut target_er: EventReader<TargetEvent>,
+    mut santa_query: Query<(&mut SantaHasTarget), With<Santa>>,
+) {
+    for target_event in target_er.read() {
+        match target_event.0 {
+            TargetEventTypes::StartShooting => {
+                for mut santa_has_target in santa_query.iter_mut() {
+                    santa_has_target.is_shooting = true;
+                }
+            }
+            TargetEventTypes::StopShooting => {}
+            _ => {
+                for mut santa_has_target in santa_query.iter_mut() {
+                    santa_has_target.is_shooting = false;
+                }
+            }
+        }
+    }
+}
+
+fn shoot_gifts_at_target(
+    mut santa_query: Query<(Entity, &mut SantaHasTarget, &GlobalTransform), With<Santa>>,
+    mut commands: Commands,
+    santas_assets: Res<SantasAssets>,
+    time: Res<Time>,
+
+) {
+    for (_santa_entity, mut santa_has_target, global_transform) in santa_query.iter_mut() {
+        if santa_has_target.is_shooting && santa_has_target.cool_down(time.delta_seconds()) {
+            let target_entity = santa_has_target.target;
+
+            let santas_position = global_transform.translation();
+
+            let missile_direction = Vec3::Z;
+            let mut t = Transform::from_xyz(
+                santas_position.x,
+                santas_position.y - 1.0,
+                santas_position.z);
+            t.rotation = Quat::from_rotation_arc(vec3(0.0, 0.0, 1.0), missile_direction);
+            t.scale = Vec3::new(0.25, 0.25, 0.25);
+            let missile_velocity = missile_direction * 10.0;
+
+            commands
+                .spawn((
+                    Name::from("Air2Surface, Bro!"),
+                    SurfaceToAirMissile::new(SAM_TIME_TO_LIVE, SAM_ACCELERATION, 10.0, SAM_MAX_SPEED),
+                    SamTarget(target_entity),
+                    SceneBundle {
+                        scene: santas_assets.missile.clone(),
+                        transform: t,
+                        ..Default::default()
+                    },
+                    MissileTrailEmitter::new(0.02),
+                    RigidBody::Kinematic,
+                    CollisionLayers::new(
+                        [CollisionLayer::Gift],
+                        [
+                            CollisionLayer::House,
+                        ]),
+                    LinearVelocity::from(missile_velocity),
+                )).with_children(|children|
+                { // Spawn the child colliders positioned relative to the rigid body
+                    children.spawn((
+                        SamChild,
+                        ParentEntity(children.parent_entity()),
+                        Collider::ball(1.0),
+                    ));
+                });
         }
     }
 }

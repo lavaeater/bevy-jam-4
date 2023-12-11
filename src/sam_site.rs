@@ -251,7 +251,7 @@ fn control_missiles(
                     sam.velocity += sam.acceleration * time.delta_seconds();
                 }
                 let missile_forward = missile_global_transform.forward();
-                let desired_forward = missile_forward.lerp((target_global_transform.translation() - missile_global_transform.translation()).normalize(), SAM_TURN_SPEED);
+                let desired_forward = missile_forward.lerp(((target_global_transform.translation() + vec3(0.0, 1.0, 0.0)) - missile_global_transform.translation()).normalize(), SAM_TURN_SPEED);
 
                 sam_velocity.0 = desired_forward * sam.velocity;
                 let q = Quat::from_rotation_arc(missile_forward, desired_forward);
