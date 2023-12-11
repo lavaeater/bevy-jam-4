@@ -8,6 +8,7 @@ use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{CollisionLayers, Position, RigidBody};
 use bevy_xpbd_3d::prelude::{ExternalForce, LinearVelocity};
 use crate::assets::SantasAssets;
+use crate::constants::{SNOW_CEILING, SNOW_SPAWN_SIZE};
 use crate::input::CoolDown;
 use crate::santa::{CollisionLayer, Santa};
 
@@ -16,7 +17,7 @@ pub struct SnowPlugin;
 impl Plugin for SnowPlugin {
     fn build(&self, app: &mut App) {
         app
-            .insert_resource(Time::<Fixed>::from_seconds(1.0))
+            .insert_resource(Time::<Fixed>::from_seconds(0.05))
             .add_systems(
                 Update,
                 (
@@ -69,10 +70,10 @@ fn spawn_snow(
     mut global_rng: ResMut<GlobalRng>,
 ) {
     if let Ok(santa_position) = where_is_santa.get_single() {
-        for _n in 0..1 {
-            let x = global_rng.f32_normalized() * 25.0;
-            let z = global_rng.f32() * 25.0;
-            let y = global_rng.f32() * 10.0;
+        for _n in 0..50 {
+            let x = global_rng.f32_normalized() * SNOW_SPAWN_SIZE;
+            let z = global_rng.f32() * SNOW_SPAWN_SIZE;
+            let y = global_rng.f32() * SNOW_CEILING;
 
             let snow_direction = Vec3::new(x, y, z);
 

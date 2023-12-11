@@ -2,13 +2,14 @@ use bevy::app::{App, Plugin, Update};
 use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, DespawnRecursiveExt};
 use bevy::math::{Quat, vec3, Vec3};
-use bevy::pbr::{PbrBundle};
-use bevy::prelude::{Commands, Component, Entity, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
+use bevy::pbr::{PbrBundle, PointLight, PointLightBundle};
+use bevy::prelude::{Color, Commands, Component, default, Entity, Event, EventReader, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
 use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
 use bevy_xpbd_3d::prelude::{LinearVelocity};
 use crate::assets::SantasAssets;
+use crate::constants::{SAM_ACCELERATION, SAM_MAX_SPEED, SAM_TIME_TO_LIVE, SAM_TURN_SPEED};
 use crate::input::{CoolDown};
 use crate::santa::{CollisionLayer, ParentEntity, Santa};
 
@@ -17,10 +18,11 @@ pub struct SamSitePlugin;
 impl Plugin for SamSitePlugin {
     fn build(&self, app: &mut App) {
         app
-            .insert_resource(SamSiteParams::new(2.0, 100))
+            .add_event::<SpawnSamSiteAt>()
+            .insert_resource(SamSiteParams::new(2.0, 1))
             .add_systems(Update,
                          (
-                             spawn_sam_sites,
+                             spawn_sam_site_at,
                              fire_sam,
                              kill_missiles,
                              control_missiles,
@@ -30,6 +32,12 @@ impl Plugin for SamSitePlugin {
             )
         ;
     }
+}
+
+#[derive(Event)]
+pub struct SpawnSamSiteAt {
+    pub position: Vec3,
+    pub belongs_to: Entity,
 }
 
 #[derive(Resource)]
@@ -66,6 +74,7 @@ impl CoolDown for SamSiteParams {
 pub struct SamSite {
     pub rate_of_fire_per_minute: f32,
     pub time_left: f32,
+    pub belongs_to: Entity,
 }
 
 impl CoolDown for SamSite {
@@ -97,6 +106,9 @@ impl SurfaceToAirMissile {
         }
     }
 }
+
+#[derive(Component)]
+pub struct SamTarget(pub Entity);
 
 #[derive(Component)]
 pub struct SamChild;
@@ -188,16 +200,33 @@ fn emit_missile_trail(
 ) {
     for (global_transform, mut emitter) in missiles.iter_mut() {
         if emitter.cool_down(time.delta_seconds()) {
-            let missile_trail = MissileTrail::new(1.0, global_rng.f32(), (global_rng.f32() + 0.5) * 2.5);
+            let missile_trail = MissileTrail::new(0.5, global_rng.f32(), (global_rng.f32() + 0.5) * 2.5);
             commands.spawn((
                 PbrBundle {
-                    mesh: santas_assets.sphere_mesh.clone(),
-                    material: santas_assets.sphere_material.clone(),
+                    mesh: santas_assets.trail_mesh.clone(),
+                    material: santas_assets.trail_material.clone(),
                     transform: Transform::from_xyz(global_transform.translation().x, global_transform.translation().y, global_transform.translation().z).with_scale(Vec3::new(missile_trail.start_scale, missile_trail.start_scale, missile_trail.start_scale)),
                     ..Default::default()
                 },
                 missile_trail
-            ));
+            ))
+                // .with_children(|children|
+                // { // Spawn the child colliders positioned relative to the rigid body
+                //     children.spawn((
+                //         PointLightBundle {
+                //             point_light: PointLight {
+                //                 color: Color::rgb(global_rng.f32(), global_rng.f32(), 0.0),
+                //                 intensity: 800.0, // Roughly a 60W non-halogen incandescent bulb
+                //                 range: 20.0,
+                //                 radius: 0.0,
+                //                 shadows_enabled: false,
+                //                 ..default()
+                //             },
+                //             ..Default::default()
+                //         },
+                //     ));
+                // })
+            ;
         }
     }
 }
@@ -217,13 +246,13 @@ fn control_missile_trail(
 }
 
 fn control_missiles(
-    mut missiles: Query<(Entity, &GlobalTransform, &mut Transform, &mut LinearVelocity, &mut SurfaceToAirMissile)>,
-    santa_position: Query<&GlobalTransform, With<Santa>>,
+    mut missiles: Query<(Entity, &GlobalTransform, &mut Transform, &mut LinearVelocity, &mut SurfaceToAirMissile, &SamTarget)>,
+    target_position: Query<&GlobalTransform>,
     time: Res<Time>,
     mut commands: Commands,
 ) {
-    if let Ok(santa_pos) = santa_position.get_single() {
-        for (entity, missile_global_transform, mut transform, mut sam_velocity, mut sam) in missiles.iter_mut() {
+    for (entity, missile_global_transform, mut transform, mut sam_velocity, mut sam, sam_target) in missiles.iter_mut() {
+        if let Ok(target_global_transform) = target_position.get(sam_target.0) {
             if sam.cool_down(time.delta_seconds()) {
                 commands.entity(entity).despawn_recursive();
                 // Spawn explosion, bro
@@ -232,7 +261,7 @@ fn control_missiles(
                     sam.velocity += sam.acceleration * time.delta_seconds();
                 }
                 let missile_forward = missile_global_transform.forward();
-                let desired_forward = missile_forward.lerp((santa_pos.translation() - missile_global_transform.translation()).normalize(), 0.1);
+                let desired_forward = missile_forward.lerp(((target_global_transform.translation() + vec3(0.0, 1.0, 0.0)) - missile_global_transform.translation()).normalize(), SAM_TURN_SPEED);
 
                 sam_velocity.0 = desired_forward * sam.velocity;
                 let q = Quat::from_rotation_arc(missile_forward, desired_forward);
@@ -245,29 +274,30 @@ fn control_missiles(
 fn fire_sam(
     mut commands: Commands,
     mut sam_sites: Query<(&mut SamSite, &GlobalTransform)>,
-    santa_position: Query<&GlobalTransform, With<Santa>>,
+    so_this_is_santa: Query<Entity, With<Santa>>,
     santas_assets: Res<SantasAssets>,
     time: Res<Time>,
 ) {
     for (mut sam_site, global_transform) in sam_sites.iter_mut() {
         if sam_site.cool_down(time.delta_seconds()) {
-            let santa_pos = santa_position.get_single().unwrap();
+            let santa_entity = so_this_is_santa.get_single().unwrap();
 
             let sam_site_position = global_transform.translation();
 
-            let missile_direction = (santa_pos.translation() - sam_site_position).normalize();
+            let missile_direction = -Vec3::Y;
             let mut t = Transform::from_xyz(
                 sam_site_position.x,
-                sam_site_position.y,
+                sam_site_position.y + 1.0,
                 sam_site_position.z);
             t.rotation = Quat::from_rotation_arc(vec3(0.0, 0.0, 1.0), missile_direction);
             t.scale = Vec3::new(0.25, 0.25, 0.25);
-            let missile_velocity = missile_direction * 50.0;
+            let missile_velocity = missile_direction * 10.0;
 
             commands
                 .spawn((
                     Name::from("Surface2Air, Bro!"),
-                    SurfaceToAirMissile::new(20.0, 25.0, 25.0, 100.0),
+                    SurfaceToAirMissile::new(SAM_TIME_TO_LIVE, SAM_ACCELERATION, 10.0, SAM_MAX_SPEED),
+                    SamTarget(santa_entity),
                     SceneBundle {
                         scene: santas_assets.missile.clone(),
                         transform: t,
@@ -288,72 +318,58 @@ fn fire_sam(
                         ParentEntity(children.parent_entity()),
                         Collider::ball(1.0),
                     ));
-                    // children.spawn(
-                    //     SpotLightBundle {
-                    //         transform: Transform::from_xyz(0.0, 0.0, -0.5)
-                    //             .looking_at(t.back(), t.up()),
-                    //         spot_light: SpotLight {
-                    //             intensity: 200000.0, // lumens
-                    //             color: Color::WHITE,
-                    //             shadows_enabled: true,
-                    //             inner_angle: PI / 4.0 * 0.85,
-                    //             outer_angle: PI / 4.0,
-                    //             ..default()
-                    //         },
-                    //         ..default()
-                    //     });
+                    children.spawn((
+                        PointLightBundle {
+                            point_light: PointLight {
+                                color: Color::rgb(1.0, 0.8, 0.0),
+                                intensity: 800.0, // Roughly a 60W non-halogen incandescent bulb
+                                range: 20.0,
+                                radius: 0.0,
+                                shadows_enabled: false,
+                                ..default()
+                            },
+                            ..Default::default()
+                        },
+                    ));
                 });
         }
     }
 }
 
-fn spawn_sam_sites(
-    mut sam_site_params: ResMut<SamSiteParams>,
+fn spawn_sam_site_at(
+    mut spawn_sam_site_at: EventReader<SpawnSamSiteAt>,
     santas_assets: Res<SantasAssets>,
-    time: Res<Time>,
     mut commands: Commands,
-    where_is_santa: Query<&GlobalTransform, With<Santa>>,
 ) {
-    if sam_site_params.cool_down(time.delta_seconds()) && sam_site_params.sam_site_count < sam_site_params.max_sam_sites {
-        sam_site_params.sam_site_count += 1;
-        if let Ok(santas_transform) = where_is_santa.get_single() {
-            let sam_site_position = santas_transform.translation() + -santas_transform.forward() * 100.0 + vec3(0.0, -50.0, 0.0);
-
-            commands
-                .spawn((
-                    Name::from("SAM Site"),
-                    SamSite {
-                        rate_of_fire_per_minute: 12.0,
-                        time_left: 0.0,
-                    },
-                    // FixSceneTransform::new(
-                    //     Vec3::new(0.0, -1.0, 0.0),
-                    //     Quat::from_euler(
-                    //         EulerRot::YXZ,
-                    //         0.0, 0.0, 0.0),
-                    //     Vec3::new(1.0, 1.0, 1.0),
-                    // ),
-                    PbrBundle {
-                        mesh: santas_assets.turret.clone(),
-                        material: santas_assets.turret_material.clone(),
-                        transform: Transform::from_xyz(sam_site_position.x, sam_site_position.y, sam_site_position.z),
-                        ..Default::default()
-                    },
-                    RigidBody::Static,
-                    CollisionLayers::new(
-                        [CollisionLayer::Solid],
-                        [
-                            CollisionLayer::Santa,
-                            CollisionLayer::Missile,
-                        ]),
-                )).with_children(|children|
-                { // Spawn the child colliders positioned relative to the rigid body
-                    children.spawn((
-                        Collider::cuboid(1.0, 1.0, 1.0),
-                        Transform::from_xyz(0.0, 0.0, 0.0),
-                    ));
-                })
-            ;
-        }
+    for spawn_event in spawn_sam_site_at.read() {
+        commands
+            .spawn((
+                Name::from("SAM Site"),
+                SamSite {
+                    rate_of_fire_per_minute: 12.0,
+                    time_left: 0.0,
+                    belongs_to: spawn_event.belongs_to,
+                },
+                PbrBundle {
+                    mesh: santas_assets.turret.clone(),
+                    material: santas_assets.turret_material.clone(),
+                    transform: Transform::from_xyz(spawn_event.position.x, spawn_event.position.y, spawn_event.position.z),
+                    ..Default::default()
+                },
+                RigidBody::Static,
+                CollisionLayers::new(
+                    [CollisionLayer::Solid],
+                    [
+                        CollisionLayer::Santa,
+                        CollisionLayer::Missile,
+                    ]),
+            )).with_children(|children|
+            { // Spawn the child colliders positioned relative to the rigid body
+                children.spawn((
+                    Collider::cuboid(1.0, 1.0, 1.0),
+                    Transform::from_xyz(0.0, 0.0, 0.0),
+                ));
+            })
+        ;
     }
 }

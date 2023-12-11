@@ -1,11 +1,14 @@
 use bevy::app::{App, Plugin, Update};
 use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
-use bevy::prelude::{Component, EventReader, KeyCode, Query, With};
+use bevy::prelude::{Component, EventReader, EventWriter, KeyCode, Query, Res, With};
 use bevy::reflect::Reflect;
+use bevy::time::Time;
 use bevy::utils::HashSet;
 use bevy_xpbd_3d::components::{AngularVelocity, LinearVelocity, Rotation};
 use bevy_xpbd_3d::math::Vector3;
+use crate::santa::{GameEvent, GameEventTypes};
+use crate::ui::SillyGameState;
 
 pub struct InputPlugin;
 
@@ -83,6 +86,7 @@ pub struct Controller {
     pub directions: HashSet<ControlDirection>,
     pub has_thrown: bool,
     pub speed: f32,
+    pub acceleration: f32,
     pub max_speed: f32,
     pub turn_speed: f32,
     pub max_turn_speed: f32,
@@ -91,13 +95,14 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn new(speed: f32, turn_speed: f32, rate_of_fire_per_minute: f32) -> Self {
+    pub fn new(speed: f32, acceleration: f32, turn_speed: f32, rate_of_fire_per_minute: f32) -> Self {
         Self {
             triggers: HashSet::default(),
             rotations: HashSet::default(),
             directions: HashSet::default(),
             has_thrown: false,
             speed,
+            acceleration,
             max_speed: speed,
             turn_speed,
             max_turn_speed: turn_speed,
@@ -129,6 +134,8 @@ pub struct KinematicMovement {}
 pub fn input_control(
     mut key_evr: EventReader<KeyboardInput>,
     mut query: Query<&mut Controller, With<KeyboardController>>,
+    silly_game_state: Res<SillyGameState>,
+    mut game_event: EventWriter<GameEvent>,
 ) {
     if let Ok(mut controller) = query.get_single_mut() {
         for ev in key_evr.read() {
@@ -155,10 +162,8 @@ pub fn input_control(
                         controller.directions.insert(ControlDirection::Backward);
                     }
                     Some(KeyCode::Space) => {
-                        if controller.triggers.contains(&ControlCommands::FirePrimary) {
-                            controller.triggers.remove(&ControlCommands::FirePrimary);
-                        } else {
-                            controller.triggers.insert(ControlCommands::FirePrimary);
+                        if silly_game_state.waiting_for_restart {
+                            game_event.send(GameEvent{event_type: GameEventTypes::Restarted});
                         }
                     }
                     _ => {}
@@ -214,13 +219,14 @@ pub fn dynamic_movement(
 
 
 pub fn kinematic_movement(
-    mut query: Query<(&mut LinearVelocity, &mut AngularVelocity, &Rotation, &Controller), With<KinematicMovement>>,
+    mut query: Query<(&mut LinearVelocity, &mut AngularVelocity, &Rotation, &mut Controller), With<KinematicMovement>>,
+    time: Res<Time>
 ) {
     for (
         mut linear_velocity,
         mut angular_velocity,
         rotation,
-        controller) in query.iter_mut() {
+        mut controller) in query.iter_mut() {
         let mut force = Vector3::ZERO;
         let mut torque = Vector3::ZERO;
 
@@ -237,6 +243,13 @@ pub fn kinematic_movement(
             torque.y = -1.0;
         }
         force = rotation.mul_vec3(force);
+
+
+        controller.speed += controller.acceleration * time.delta_seconds();
+        if controller.speed > controller.max_speed {
+            controller.speed = controller.max_speed;
+        }
+
         linear_velocity.0 = force * controller.speed;
         angular_velocity.0 = torque * controller.turn_speed;
     }
