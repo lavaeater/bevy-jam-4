@@ -7,8 +7,8 @@ use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::prelude::CollisionStarted;
 use crate::assets::SantasAssets;
 use crate::sam_site::{MissileTrail, SamChild, SurfaceToAirMissile};
-use crate::santa::{GiftChild, Health, ParentEntity, Santa, SantaChild};
-use crate::villages::{HouseChild, HouseEvent, HouseEventType, NeedsGifts};
+use crate::santa::{GiftChild, Health, ParentEntity, Santa, SantaChild, TargetEvent, TargetEventTypes};
+use crate::villages::{House, HouseChild, HouseEvent, HouseEventType, LoadLevel, NeedsGifts, VillageCenter};
 
 pub struct CollisionsPlugin;
 
@@ -16,11 +16,13 @@ impl Plugin for CollisionsPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_event::<SpawnExplosionAt>()
+            .add_event::<LevelFinished>()
             .add_systems(Update, (
                 missile_santa_collision_handler,
                 gift_house_collision_handler,
                 spawn_explosions,
-                received_gifts_handler
+                received_gifts_handler,
+                level_finished_handler,
             ))
         ;
     }
@@ -95,17 +97,43 @@ fn gift_house_collision_handler(
     }
 }
 
+#[derive(Event)]
+pub struct LevelFinished(pub u32);
+
 fn received_gifts_handler(
     mut gifts_received_er: EventReader<HouseEvent>,
+    house_query: Query<&House>,
+    mut village_center_query: Query<&mut VillageCenter>,
     mut commands: Commands,
+    mut level_finished_ew: EventWriter<LevelFinished>,
+    mut target_event_ew: EventWriter<TargetEvent>
 ) {
     for gifts_received in gifts_received_er.read() {
         match gifts_received.0 {
-            HouseEventType::ReceivedGifts(house) => {
-                commands.entity(house).remove::<NeedsGifts>();
+            HouseEventType::ReceivedGifts(house_entity) => {
+                commands.entity(house_entity).remove::<NeedsGifts>();
+                target_event_ew.send(TargetEvent(TargetEventTypes::StopShooting));
+                if let Ok(house) = house_query.get(house_entity) {
+                    if let Ok(mut village_center) = village_center_query.get_mut(house.belongs_to_village) {
+                        village_center.needs_gifts_count -= 1;
+                        if village_center.needs_gifts_count  <= 0 {
+                            level_finished_ew.send(LevelFinished(village_center.level));
+                        }
+                    }
+                }
+
             }
-            _ => {}
+            HouseEventType::AnotherVariant => {}
         }
+    }
+}
+
+fn level_finished_handler(
+    mut level_finished_er: EventReader<LevelFinished>,
+    mut load_level_ew: EventWriter<LoadLevel>,
+) {
+    for level_finished in level_finished_er.read() {
+        load_level_ew.send(LoadLevel(level_finished.0 + 1));
     }
 }
 

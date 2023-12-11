@@ -42,7 +42,7 @@ impl Plugin for VillagePlugin {
 }
 
 #[derive(Event)]
-pub struct LoadLevel(u32);
+pub struct LoadLevel(pub u32);
 
 #[derive(Event)]
 pub struct HouseEvent(pub HouseEventType);
@@ -71,6 +71,7 @@ fn track_game(
 
 #[derive(Component)]
 pub struct VillageCenter {
+    pub level: u32,
     pub needs_gifts_count: i32,
 }
 
@@ -124,9 +125,9 @@ fn load_level(
         let village_entity = commands.spawn(
             (
                 VillageCenter {
+                    level: load_level.0,
                     needs_gifts_count: number_of_houses,
                 },
-                NeedsGifts,
                 SceneBundle {
                     scene: level_assets.christmas_tree.clone(),
                     transform: Transform::from_translation(village_center_position),
