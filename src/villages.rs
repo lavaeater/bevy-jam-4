@@ -49,6 +49,7 @@ pub struct HouseEvent(pub HouseEventType);
 
 pub enum HouseEventType {
     ReceivedGifts(Entity),
+    AnotherVariant,
 }
 
 #[derive(Resource)]

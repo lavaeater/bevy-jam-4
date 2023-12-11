@@ -8,7 +8,7 @@ use bevy_xpbd_3d::prelude::CollisionStarted;
 use crate::assets::SantasAssets;
 use crate::sam_site::{MissileTrail, SamChild, SurfaceToAirMissile};
 use crate::santa::{GiftChild, Health, ParentEntity, Santa, SantaChild};
-use crate::villages::{HouseChild, HouseEvent, HouseEventType};
+use crate::villages::{HouseChild, HouseEvent, HouseEventType, NeedsGifts};
 
 pub struct CollisionsPlugin;
 
@@ -19,7 +19,8 @@ impl Plugin for CollisionsPlugin {
             .add_systems(Update, (
                 missile_santa_collision_handler,
                 gift_house_collision_handler,
-                spawn_explosions
+                spawn_explosions,
+                received_gifts_handler
             ))
         ;
     }
@@ -90,6 +91,20 @@ fn gift_house_collision_handler(
 
                 house_ew.send(HouseEvent(HouseEventType::ReceivedGifts(house_child_entity)));
             }
+        }
+    }
+}
+
+fn received_gifts_handler(
+    mut gifts_received_er: EventReader<HouseEvent>,
+    mut commands: Commands,
+) {
+    for gifts_received in gifts_received_er.read() {
+        match gifts_received.0 {
+            HouseEventType::ReceivedGifts(house) => {
+                commands.entity(house).remove::<NeedsGifts>();
+            }
+            _ => {}
         }
     }
 }
