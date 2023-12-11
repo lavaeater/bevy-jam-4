@@ -3,13 +3,13 @@ use bevy::core::Name;
 use bevy::hierarchy::{BuildChildren, DespawnRecursiveExt};
 use bevy::math::{Quat, vec3, Vec3};
 use bevy::pbr::{PbrBundle, PointLight, PointLightBundle};
-use bevy::prelude::{Color, Commands, Component, default, Entity, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
+use bevy::prelude::{Color, Commands, Component, default, Entity, Event, EventReader, GlobalTransform, Query, Res, ResMut, Resource, SceneBundle, Transform, With};
 use bevy::time::Time;
 use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
 use bevy_xpbd_3d::prelude::{LinearVelocity};
 use crate::assets::SantasAssets;
-use crate::constants::{GROUND_PLANE, SAM_ACCELERATION, SAM_MAX_SPEED, SAM_TIME_TO_LIVE, SAM_TURN_SPEED};
+use crate::constants::{SAM_ACCELERATION, SAM_MAX_SPEED, SAM_TIME_TO_LIVE, SAM_TURN_SPEED};
 use crate::input::{CoolDown};
 use crate::santa::{CollisionLayer, ParentEntity, Santa};
 
@@ -18,10 +18,11 @@ pub struct SamSitePlugin;
 impl Plugin for SamSitePlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_event::<SpawnSamSiteAt>()
             .insert_resource(SamSiteParams::new(2.0, 1))
             .add_systems(Update,
                          (
-                             spawn_sam_sites,
+                             spawn_sam_site_at,
                              fire_sam,
                              kill_missiles,
                              control_missiles,
@@ -31,6 +32,12 @@ impl Plugin for SamSitePlugin {
             )
         ;
     }
+}
+
+#[derive(Event)]
+pub struct SpawnSamSiteAt {
+    pub position: Vec3,
+    pub belongs_to: Entity,
 }
 
 #[derive(Resource)]
@@ -67,6 +74,7 @@ impl CoolDown for SamSiteParams {
 pub struct SamSite {
     pub rate_of_fire_per_minute: f32,
     pub time_left: f32,
+    pub belongs_to: Entity,
 }
 
 impl CoolDown for SamSite {
@@ -201,22 +209,24 @@ fn emit_missile_trail(
                     ..Default::default()
                 },
                 missile_trail
-            )).with_children(|children|
-                { // Spawn the child colliders positioned relative to the rigid body
-                    children.spawn((
-                        PointLightBundle {
-                            point_light: PointLight {
-                                color: Color::rgb(global_rng.f32(), global_rng.f32(), 0.0),
-                                intensity: 800.0, // Roughly a 60W non-halogen incandescent bulb
-                                range: 20.0,
-                                radius: 0.0,
-                                shadows_enabled: false,
-                                ..default()
-                            },
-                            ..Default::default()
-                        },
-                    ));
-                });
+            ))
+                // .with_children(|children|
+                // { // Spawn the child colliders positioned relative to the rigid body
+                //     children.spawn((
+                //         PointLightBundle {
+                //             point_light: PointLight {
+                //                 color: Color::rgb(global_rng.f32(), global_rng.f32(), 0.0),
+                //                 intensity: 800.0, // Roughly a 60W non-halogen incandescent bulb
+                //                 range: 20.0,
+                //                 radius: 0.0,
+                //                 shadows_enabled: false,
+                //                 ..default()
+                //             },
+                //             ..Default::default()
+                //         },
+                //     ));
+                // })
+            ;
         }
     }
 }
@@ -308,59 +318,58 @@ fn fire_sam(
                         ParentEntity(children.parent_entity()),
                         Collider::ball(1.0),
                     ));
+                    children.spawn((
+                        PointLightBundle {
+                            point_light: PointLight {
+                                color: Color::rgb(1.0, 0.8, 0.0),
+                                intensity: 800.0, // Roughly a 60W non-halogen incandescent bulb
+                                range: 20.0,
+                                radius: 0.0,
+                                shadows_enabled: false,
+                                ..default()
+                            },
+                            ..Default::default()
+                        },
+                    ));
                 });
         }
     }
 }
 
-fn spawn_sam_sites(
-    mut sam_site_params: ResMut<SamSiteParams>,
+fn spawn_sam_site_at(
+    mut spawn_sam_site_at: EventReader<SpawnSamSiteAt>,
     santas_assets: Res<SantasAssets>,
-    time: Res<Time>,
     mut commands: Commands,
-    where_is_santa: Query<&GlobalTransform, With<Santa>>,
 ) {
-    if sam_site_params.cool_down(time.delta_seconds()) && sam_site_params.sam_site_count < sam_site_params.max_sam_sites {
-        sam_site_params.sam_site_count += 1;
-        if let Ok(santas_transform) = where_is_santa.get_single() {
-            let forward = vec3(-santas_transform.forward().x, 0.0, -santas_transform.forward().z) * 100.0;
-            let sam_site_position = santas_transform.translation() + forward + vec3(0.0, GROUND_PLANE, 0.0);
-
-            commands
-                .spawn((
-                    Name::from("SAM Site"),
-                    SamSite {
-                        rate_of_fire_per_minute: 12.0,
-                        time_left: 0.0,
-                    },
-                    // FixSceneTransform::new(
-                    //     Vec3::new(0.0, -1.0, 0.0),
-                    //     Quat::from_euler(
-                    //         EulerRot::YXZ,
-                    //         0.0, 0.0, 0.0),
-                    //     Vec3::new(1.0, 1.0, 1.0),
-                    // ),
-                    PbrBundle {
-                        mesh: santas_assets.turret.clone(),
-                        material: santas_assets.turret_material.clone(),
-                        transform: Transform::from_xyz(sam_site_position.x, sam_site_position.y, sam_site_position.z),
-                        ..Default::default()
-                    },
-                    RigidBody::Static,
-                    CollisionLayers::new(
-                        [CollisionLayer::Solid],
-                        [
-                            CollisionLayer::Santa,
-                            CollisionLayer::Missile,
-                        ]),
-                )).with_children(|children|
-                { // Spawn the child colliders positioned relative to the rigid body
-                    children.spawn((
-                        Collider::cuboid(1.0, 1.0, 1.0),
-                        Transform::from_xyz(0.0, 0.0, 0.0),
-                    ));
-                })
-            ;
-        }
+    for spawn_event in spawn_sam_site_at.read() {
+        commands
+            .spawn((
+                Name::from("SAM Site"),
+                SamSite {
+                    rate_of_fire_per_minute: 12.0,
+                    time_left: 0.0,
+                    belongs_to: spawn_event.belongs_to,
+                },
+                PbrBundle {
+                    mesh: santas_assets.turret.clone(),
+                    material: santas_assets.turret_material.clone(),
+                    transform: Transform::from_xyz(spawn_event.position.x, spawn_event.position.y, spawn_event.position.z),
+                    ..Default::default()
+                },
+                RigidBody::Static,
+                CollisionLayers::new(
+                    [CollisionLayer::Solid],
+                    [
+                        CollisionLayer::Santa,
+                        CollisionLayer::Missile,
+                    ]),
+            )).with_children(|children|
+            { // Spawn the child colliders positioned relative to the rigid body
+                children.spawn((
+                    Collider::cuboid(1.0, 1.0, 1.0),
+                    Transform::from_xyz(0.0, 0.0, 0.0),
+                ));
+            })
+        ;
     }
 }

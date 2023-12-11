@@ -2,12 +2,12 @@ use bevy::app::{App, Plugin, Update};
 use bevy::hierarchy::{BuildChildren, DespawnRecursiveExt};
 use bevy::math::Vec3;
 use bevy::pbr::{PbrBundle, PointLight, PointLightBundle};
-use bevy::prelude::{Color, Commands, default, Event, EventReader, EventWriter, GlobalTransform, Query, Res, ResMut, Transform, With, Without};
+use bevy::prelude::{Color, Commands, default, Entity, Event, EventReader, EventWriter, GlobalTransform, Query, Res, ResMut, Transform, With, Without};
 use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::prelude::CollisionStarted;
 use crate::assets::SantasAssets;
-use crate::sam_site::{MissileTrail, SamChild, SurfaceToAirMissile};
-use crate::santa::{GiftChild, Health, ParentEntity, Santa, SantaChild, TargetEvent, TargetEventTypes};
+use crate::sam_site::{MissileTrail, SamChild, SamSite, SurfaceToAirMissile};
+use crate::santa::{GiftChild, SantaStats, ParentEntity, Santa, SantaChild, TargetEvent, TargetEventTypes};
 use crate::villages::{House, HouseChild, HouseEvent, HouseEventType, LoadLevel, NeedsGifts, VillageCenter};
 
 pub struct CollisionsPlugin;
@@ -37,7 +37,7 @@ fn missile_santa_collision_handler(
     mut collision_reader: EventReader<CollisionStarted>,
     mut explosion_ew: EventWriter<SpawnExplosionAt>,
     mut commands: Commands,
-    mut santa_query: Query<&mut Health, With<Santa>>,
+    mut santa_query: Query<&mut SantaStats, With<Santa>>,
     missile_query: Query<(&SurfaceToAirMissile, &GlobalTransform)>,
     santa_child_query: Query<&ParentEntity, (With<SantaChild>, Without<SamChild>)>,
     missile_child_query: Query<&ParentEntity, (With<SamChild>, Without<SantaChild>)>,
@@ -116,14 +116,14 @@ fn received_gifts_handler(
                 if let Ok(house) = house_query.get(house_entity) {
                     if let Ok(mut village_center) = village_center_query.get_mut(house.belongs_to_village) {
                         village_center.needs_gifts_count -= 1;
-                        if village_center.needs_gifts_count  <= 0 {
+                        if village_center.needs_gifts_count <= 0 && village_center.needs_gifts {
+                            village_center.needs_gifts = false;
                             level_finished_ew.send(LevelFinished(village_center.level));
                         }
                     }
                 }
 
             }
-            HouseEventType::AnotherVariant => {}
         }
     }
 }
@@ -131,9 +131,18 @@ fn received_gifts_handler(
 fn level_finished_handler(
     mut level_finished_er: EventReader<LevelFinished>,
     mut load_level_ew: EventWriter<LoadLevel>,
+    query: Query<(Entity, &GlobalTransform), With<SamSite>>,
+    mut spawn_explosion_at: EventWriter<SpawnExplosionAt>,
+    mut commands: Commands,
 ) {
     for level_finished in level_finished_er.read() {
         load_level_ew.send(LoadLevel(level_finished.0 + 1));
+        for (entity, transform) in query.iter() {
+            spawn_explosion_at.send(SpawnExplosionAt {
+                position: transform.translation(),
+            });
+            commands.entity(entity).despawn_recursive();
+        }
     }
 }
 
@@ -144,7 +153,7 @@ fn spawn_explosions(
     santas_assets: Res<SantasAssets>,
 ) {
     for explosion in explosion_reader.read() {
-        let explosion_size = global_rng.i32(5..=15);
+        let explosion_size = global_rng.i32(3..=8);
         for _i in 1..explosion_size {
             let missile_trail = MissileTrail::new(0.5 * global_rng.f32(), global_rng.f32(), (global_rng.f32() + 0.5) * 10.0);
             commands.spawn((

@@ -4,13 +4,15 @@ use bevy::core::Name;
 use bevy::hierarchy::BuildChildren;
 use bevy::math::{EulerRot, Quat, Vec3};
 use bevy::pbr::{PbrBundle, StandardMaterial};
-use bevy::prelude::{Color, Commands, Component, Entity, Event, EventReader, EventWriter, Mesh, Res, ResMut, Resource, Scene, shape, Transform};
+use bevy::prelude::{Color, Commands, Component, Entity, Event, EventReader, EventWriter, GlobalTransform, Mesh, Query, Res, ResMut, Resource, Scene, shape, Transform, With};
 use bevy::scene::SceneBundle;
 use bevy::utils::default;
 use bevy_turborand::{DelegatedRng, GlobalRng};
 use bevy_xpbd_3d::components::{Collider, CollisionLayers, RigidBody};
-use crate::constants::GROUND_PLANE;
-use crate::santa::{CollisionLayer, FixChildTransform, NeedsTransformFix, ParentEntity};
+use bevy_xpbd_3d::math::PI;
+use crate::constants::{GROUND_PLANE, HOUSE_RADIUS, HOUSE_SPAWN_DISTANCE};
+use crate::sam_site::SpawnSamSiteAt;
+use crate::santa::{CollisionLayer, FixChildTransform, GameEvent, GameEventTypes, NeedsTransformFix, ParentEntity, Santa};
 
 pub struct VillagePlugin;
 
@@ -33,7 +35,6 @@ impl Plugin for VillagePlugin {
             )
             .add_systems(Update,
                          (
-                             track_game,
                              load_level,
                          ),
             )
@@ -49,7 +50,6 @@ pub struct HouseEvent(pub HouseEventType);
 
 pub enum HouseEventType {
     ReceivedGifts(Entity),
-    AnotherVariant,
 }
 
 #[derive(Resource)]
@@ -59,20 +59,11 @@ pub struct GameTracker {
     pub lives: u32,
 }
 
-fn track_game(
-    mut game_tracker: ResMut<GameTracker>,
-    mut load_level_ew: EventWriter<LoadLevel>,
-) {
-    if game_tracker.level == 0 {
-        game_tracker.level += 1;
-        load_level_ew.send(LoadLevel(game_tracker.level));
-    }
-}
-
 #[derive(Component)]
 pub struct VillageCenter {
     pub level: u32,
     pub needs_gifts_count: i32,
+    pub needs_gifts: bool,
 }
 
 
@@ -91,8 +82,6 @@ impl House {
         }
     }
 }
-
-pub const HOUSE_RADIUS: i32 = 100;
 
 fn create_ground(
     mut commands: Commands,
@@ -117,16 +106,30 @@ fn load_level(
     mut load_level_er: EventReader<LoadLevel>,
     level_assets: Res<LevelAssets>,
     mut global_rng: ResMut<GlobalRng>,
+    santas_global_transform: Query<&GlobalTransform, With<Santa>>,
+    mut spawn_sam_sites_ew: EventWriter<SpawnSamSiteAt>,
+    mut game_won_ew: EventWriter<GameEvent>
 ) {
     for load_level in load_level_er.read() {
+        if load_level.0 > 10 {
+            game_won_ew.send(GameEvent{ event_type: GameEventTypes::Won });
+            continue;
+        }
         let number_of_houses: i32 = (load_level.0 * 2 + load_level.0) as i32;
 
-        let village_center_position = Vec3::new(global_rng.i32(-HOUSE_RADIUS..=HOUSE_RADIUS) as f32, GROUND_PLANE, global_rng.i32(-HOUSE_RADIUS..=HOUSE_RADIUS) as f32);
+        let number_of_sam_sites = load_level.0 * load_level.0 - 1;
+
+        let santas_position = santas_global_transform.single();
+
+        let village_direction = (if load_level.0 == 1 { Vec3::Z } else {  Quat::from_euler(EulerRot::ZYX, global_rng.f32_normalized() * PI, 0.0 ,0.0).mul_vec3(santas_position.forward()) }) * global_rng.u32(2..10) as f32 * HOUSE_SPAWN_DISTANCE;
+
+        let village_center_position = Vec3::new(global_rng.i32(-HOUSE_RADIUS..=HOUSE_RADIUS) as f32 + village_direction.x, GROUND_PLANE, global_rng.i32(-HOUSE_RADIUS..=HOUSE_RADIUS) as f32 + village_direction.z);
         let village_entity = commands.spawn(
             (
                 VillageCenter {
                     level: load_level.0,
                     needs_gifts_count: number_of_houses,
+                    needs_gifts: true,
                 },
                 SceneBundle {
                     scene: level_assets.christmas_tree.clone(),
@@ -135,6 +138,14 @@ fn load_level(
                 }
         ))
         .id();
+
+        for _ in 0..number_of_sam_sites {
+            spawn_sam_sites_ew.send(SpawnSamSiteAt {
+                position: village_center_position + Vec3::new(global_rng.i32(-(HOUSE_RADIUS / 12)..=(HOUSE_RADIUS/ 12)) as f32, 0.0, global_rng.i32(-(HOUSE_RADIUS / 12)..=(HOUSE_RADIUS/ 12)) as f32),
+                belongs_to: village_entity
+            });
+        }
+
         for n in 0..number_of_houses {
             let house_type = global_rng.i32(0..3);
             let house =
@@ -209,7 +220,7 @@ pub fn load_level_assets(
         house_large: asset_server.load("models/houses/house-large.glb#Scene0"),
         ground_mesh: meshes.add(Mesh::from(shape::Plane { size: 100000.0, subdivisions: 4 })),
         ground_material: materials.add(StandardMaterial {
-            base_color: Color::rgb(0.0, 0.5, 0.0),
+            base_color: Color::rgb(0.0, 0.1, 0.0),
             ..default()
         }),
         christmas_tree:asset_server.load("models/christmas-tree.glb#Scene0"),

@@ -1,12 +1,14 @@
 use bevy::app::{App, Plugin, Update};
 use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
-use bevy::prelude::{Component, EventReader, KeyCode, Query, Res, With};
+use bevy::prelude::{Component, EventReader, EventWriter, KeyCode, Query, Res, With};
 use bevy::reflect::Reflect;
 use bevy::time::Time;
 use bevy::utils::HashSet;
 use bevy_xpbd_3d::components::{AngularVelocity, LinearVelocity, Rotation};
 use bevy_xpbd_3d::math::Vector3;
+use crate::santa::{GameEvent, GameEventTypes};
+use crate::ui::SillyGameState;
 
 pub struct InputPlugin;
 
@@ -132,6 +134,8 @@ pub struct KinematicMovement {}
 pub fn input_control(
     mut key_evr: EventReader<KeyboardInput>,
     mut query: Query<&mut Controller, With<KeyboardController>>,
+    silly_game_state: Res<SillyGameState>,
+    mut game_event: EventWriter<GameEvent>,
 ) {
     if let Ok(mut controller) = query.get_single_mut() {
         for ev in key_evr.read() {
@@ -158,10 +162,8 @@ pub fn input_control(
                         controller.directions.insert(ControlDirection::Backward);
                     }
                     Some(KeyCode::Space) => {
-                        if controller.triggers.contains(&ControlCommands::FirePrimary) {
-                            controller.triggers.remove(&ControlCommands::FirePrimary);
-                        } else {
-                            controller.triggers.insert(ControlCommands::FirePrimary);
+                        if silly_game_state.waiting_for_restart {
+                            game_event.send(GameEvent{event_type: GameEventTypes::Restarted});
                         }
                     }
                     _ => {}

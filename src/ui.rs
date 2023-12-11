@@ -5,7 +5,9 @@ use bevy::prelude::*;
 use bevy::app::{App, Plugin, Startup};
 use bevy::prelude::{Commands, Entity, Event, EventReader};
 use crate::camera::GameCamera;
-use crate::santa::{TargetEvent, TargetEventTypes};
+use crate::sam_site::SamSite;
+use crate::santa::{GameEvent, GameEventTypes, Santa, SantaStats, TargetEvent, TargetEventTypes};
+use crate::villages::{House, LoadLevel};
 
 pub struct UiPlugin;
 
@@ -16,6 +18,9 @@ impl Plugin for UiPlugin {
             .insert_resource(UiResources {
                 target_color: Color::RED,
             })
+            .insert_resource(SillyGameState {
+                waiting_for_restart: false,
+            })
             .add_systems(
                 Startup,
                 spawn_ui,
@@ -23,8 +28,9 @@ impl Plugin for UiPlugin {
             .add_systems(
                 Update, (
                     target_indicator_system,
-                    fellow_system),
-            )
+                    fellow_system,
+                    game_over_handler,
+                ))
         ;
     }
 }
@@ -153,6 +159,73 @@ pub fn target_indicator_system(
         }
     }
 }
+
+#[derive(Resource)]
+pub struct SillyGameState {
+    pub waiting_for_restart: bool,
+}
+
+pub fn game_over_handler(
+    mut game_event: EventReader<GameEvent>,
+    mut elements: Elements,
+    mut commands: Commands,
+    sam_query: Query<Entity, With<SamSite>>,
+    house_query: Query<Entity, With<House>>,
+    mut load_level_ew: EventWriter<LoadLevel>,
+    santa_query: Query<Entity, With<Santa>>,
+    mut silly_game_state: ResMut<SillyGameState>
+) {
+    for game_event in game_event.read() {
+        let mut restart = false;
+        match game_event.event_type {
+            GameEventTypes::Lost => {
+                elements.select(".main").add_child(eml! {
+                    <div c:game_over_text>
+                        <span s:color="#ff0000" value="GAME OVER AND CHRISTMAS IS RUINED! PRESS SPACE TO RESTART!"/>
+                    </div>
+                });
+                restart = true;
+            }
+            GameEventTypes::Won => {
+                elements.select(".main").add_child(eml! {
+                    <div c:game_over_text>
+                        <span s:color="#ff0000" value="YOU WIN! Great! PRESS SPACE TO RESTART!"/>
+                    </div>
+                });
+                restart = true;
+            }
+            GameEventTypes::Started => {
+                load_level_ew.send(LoadLevel(1));
+                silly_game_state.waiting_for_restart = false;
+                let p = santa_query.get_single().unwrap();
+                elements.select("#ui-footer")
+                    .add_child(eml! {
+                        <span c:cell>
+                            <label bind:value=from!(p, SantaStats:current_level | fmt.c("Current Level: {c}") )/>
+                            <label bind:value=from!(p, SantaStats:health | fmt.c("Health: {c}") )/>
+                            <label bind:value=from!(p, SantaStats:houses_left | fmt.c("Houses Left: {c}") )/>
+                            <label bind:value=from!(p, SantaStats:sam_sites | fmt.c("Sam Sites: {c}") )/>
+                        </span>
+                    });
+            }
+            GameEventTypes::Restarted => {
+                silly_game_state.waiting_for_restart = false;
+                elements.select(".game_over_text").remove();
+                load_level_ew.send(LoadLevel(1));
+            }
+        }
+        if restart {
+            silly_game_state.waiting_for_restart = true;
+            for sam in sam_query.iter() {
+                commands.entity(sam).despawn_recursive();
+            }
+            for house in house_query.iter() {
+                commands.entity(house).despawn_recursive();
+            }
+        }
+    }
+}
+
 
 #[derive(Component)]
 pub struct Fellow {

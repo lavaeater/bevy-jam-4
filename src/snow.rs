@@ -70,7 +70,7 @@ fn spawn_snow(
     mut global_rng: ResMut<GlobalRng>,
 ) {
     if let Ok(santa_position) = where_is_santa.get_single() {
-        for _n in 0..25 {
+        for _n in 0..50 {
             let x = global_rng.f32_normalized() * SNOW_SPAWN_SIZE;
             let z = global_rng.f32() * SNOW_SPAWN_SIZE;
             let y = global_rng.f32() * SNOW_CEILING;

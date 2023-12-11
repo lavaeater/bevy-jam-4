@@ -11,8 +11,8 @@ use bevy_xpbd_3d::prelude::PhysicsLayer;
 use crate::assets::SantasAssets;
 use crate::constants::{GROUND_PLANE, SAM_ACCELERATION, SAM_MAX_SPEED, SAM_TIME_TO_LIVE, SANTA_ACCELERATION, SANTA_MAX_SPEED, SANTA_MISSILE_RANGE, SANTA_TURN_SPEED};
 use crate::input::{Controller, CoolDown, KeyboardController, KinematicMovement};
-use crate::sam_site::{MissileTrailEmitter, SamTarget, SurfaceToAirMissile};
-use crate::villages::{House, NeedsGifts};
+use crate::sam_site::{MissileTrailEmitter, SamTarget, SpawnSamSiteAt, SurfaceToAirMissile};
+use crate::villages::{House, HouseEvent, HouseEventType, LoadLevel, NeedsGifts};
 
 pub struct SantaPlugin;
 
@@ -20,6 +20,7 @@ impl Plugin for SantaPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_event::<TargetEvent>()
+            .add_event::<GameEvent>()
             .add_systems(
                 PostStartup, (
                     spawn_santa,
@@ -31,6 +32,8 @@ impl Plugin for SantaPlugin {
                     track_target,
                     toggle_santa_shooting,
                     shoot_gifts_at_target,
+                    is_santa_dead,
+                    update_santa_stats,
                 ),
             )
         ;
@@ -104,14 +107,47 @@ impl CoolDown for SantaHasTarget {
 pub struct ParentEntity(pub Entity);
 
 #[derive(Component)]
-pub struct Health {
+pub struct SantaStats {
     pub health: i32,
+    pub current_level: u32,
+    pub houses_left: u32,
+    pub sam_sites: u32,
 }
 
-impl Health {
+impl SantaStats {
     pub fn new(health: i32) -> Self {
         Self {
             health,
+            current_level: 0,
+            houses_left: 0,
+            sam_sites: 0,
+        }
+    }
+}
+
+fn update_santa_stats(
+    mut santa_query: Query<&mut SantaStats, With<Santa>>,
+    mut load_level_er: EventReader<LoadLevel>,
+    mut house_er: EventReader<HouseEvent>,
+    mut spawn_sam_sites: EventReader<SpawnSamSiteAt>
+) {
+    for mut santa_stats in santa_query.iter_mut() {
+        for load_level in load_level_er.read() {
+            santa_stats.current_level = load_level.0;
+            santa_stats.sam_sites = 0;
+            santa_stats.houses_left = load_level.0 * 2 + load_level.0;
+        }
+        for house_event in house_er.read() {
+            match house_event.0 {
+                HouseEventType::ReceivedGifts(_) => {
+                    if santa_stats.houses_left > 0 {
+                        santa_stats.houses_left -= 1;
+                    }
+                }
+            }
+        }
+        for _ in spawn_sam_sites.read() {
+            santa_stats.sam_sites += 1;
         }
     }
 }
@@ -124,11 +160,12 @@ pub struct RudolphsRedNose {
 fn spawn_santa(
     mut commands: Commands,
     santas_assets: Res<SantasAssets>,
+    mut game_event_ew: EventWriter<GameEvent>
 ) {
     let santa_entity = commands.spawn((
         Name::from("Saint Nicholas"),
         Santa {},
-        Health::new(100),
+        SantaStats::new(100),
         FixChildTransform::new(
             Vec3::new(0.0, 1.0, 0.0),
             Quat::from_euler(
@@ -175,7 +212,7 @@ fn spawn_santa(
             SpotLightBundle {
                 spot_light: SpotLight {
                     color: Color::rgb(1.0, 0.0, 0.0),
-                    intensity: 1000000.0, // Roughly a 60W non-halogen incandescent bulb
+                    intensity: 4000000.0, // Roughly a 60W non-halogen incandescent bulb
                     range: 2000.0,
                     radius: 0.0,
                     shadows_enabled: true,
@@ -187,6 +224,7 @@ fn spawn_santa(
                 ..Default::default()
             },
         ));
+    game_event_ew.send(GameEvent { event_type: GameEventTypes::Started });
 }
 
 pub fn fix_model_transforms(
@@ -206,31 +244,6 @@ pub fn fix_model_transforms(
         }
     }
 }
-
-// fn search_for_villages(
-//     village_query: Query<(Entity, &Transform, &VillageCenter), With<NeedsGifts>>,
-//     santas_position: Query<(Entity, &GlobalTransform), With<SantaNeedsTarget>>,
-//     mut commands: Commands,
-// ) {
-//     if let Ok((santa_entity, santas_position)) = santas_position.get_single() {
-//         let mut closest_village: Option<(Entity, f32)> = None;
-//         for (village_entity, village_transform, _village_center) in village_query.iter() {
-//             if closest_village.is_none() {
-//                 closest_village = Some((village_entity, village_transform.translation.distance(santas_position.translation())));
-//             } else {
-//                 let distance = village_transform.translation.distance(santas_position.translation());
-//                 if distance < closest_village.unwrap().1 {
-//                     closest_village = Some((village_entity, distance));
-//                 }
-//             }
-//         }
-//         if let Some((close_village, _)) = closest_village {
-//             commands.entity(santa_entity).insert(SantaHasTarget { target: close_village });
-//             commands.entity(santa_entity).remove::<SantaNeedsTarget>();
-//         }
-//     }
-// }
-
 pub enum TargetEventTypes {
     Acquired(Entity),
     Lost,
@@ -340,14 +353,14 @@ fn shoot_gifts_at_target(
                 santas_position.x,
                 santas_position.y - 1.0,
                 santas_position.z);
-            t.rotation = Quat::from_rotation_arc(vec3(0.0, 0.0, 1.0), missile_direction);
+            t.rotation = Quat::from_rotation_arc(vec3(0.0, 0.0, -1.0), missile_direction);
             t.scale = Vec3::new(0.25, 0.25, 0.25);
-            let missile_velocity = missile_direction * 10.0;
+            let missile_velocity = missile_direction;
 
             commands
                 .spawn((
                     Name::from("Air2Surface, Bro!"),
-                    SurfaceToAirMissile::new(SAM_TIME_TO_LIVE, SAM_ACCELERATION, 10.0, SAM_MAX_SPEED),
+                    SurfaceToAirMissile::new(SAM_TIME_TO_LIVE, SAM_ACCELERATION * 5.0, 30.0, SAM_MAX_SPEED * 3.0),
                     SamTarget(target_entity),
                     SceneBundle {
                         scene: santas_assets.missile.clone(),
@@ -370,6 +383,31 @@ fn shoot_gifts_at_target(
                         Collider::ball(1.0),
                     ));
                 });
+        }
+    }
+}
+
+#[derive(Event)]
+pub struct GameEvent {
+    pub event_type: GameEventTypes,
+}
+
+pub enum GameEventTypes {
+    Lost,
+    Won,
+    Started,
+    Restarted,
+}
+
+fn is_santa_dead(
+    mut santa_query: Query<(Entity, &mut SantaStats, &mut Transform), With<Santa>>,
+    mut game_ew: EventWriter<GameEvent>,
+) {
+    for (_, mut health, mut transform) in santa_query.iter_mut() {
+        if health.health <= 0 {
+            health.health = 100;
+            transform.translation = Vec3::new(0.0, 0.0, 0.0);
+            game_ew.send(GameEvent { event_type: GameEventTypes::Lost });
         }
     }
 }
