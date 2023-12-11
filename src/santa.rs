@@ -9,7 +9,7 @@ use bevy::utils::default;
 use bevy_xpbd_3d::components::{AngularDamping, Collider, CollisionLayers, Friction, LinearDamping, RigidBody};
 use bevy_xpbd_3d::prelude::PhysicsLayer;
 use crate::assets::SantasAssets;
-use crate::constants::{GROUND_PLANE, SANTA_ACCELERATION, SANTA_MAX_SPEED, SANTA_TURN_SPEED};
+use crate::constants::{GROUND_PLANE, SANTA_ACCELERATION, SANTA_MAX_SPEED, SANTA_MISSILE_RANGE, SANTA_TURN_SPEED};
 use crate::input::{Controller, KeyboardController, KinematicMovement};
 use crate::villages::{House, NeedsGifts};
 
@@ -79,6 +79,7 @@ pub struct SantaNeedsTarget;
 #[derive(Component)]
 pub struct SantaHasTarget {
     pub target: Entity,
+    pub in_range: bool,
 }
 
 
@@ -214,8 +215,10 @@ pub fn fix_model_transforms(
 // }
 
 pub enum TargetEventTypes {
-    TargetAqcuired(Entity),
-    TargetLost,
+    Acquired(Entity),
+    Lost,
+    InRange,
+    OutOfRange,
 }
 
 #[derive(Event)]
@@ -240,33 +243,42 @@ fn search_for_targets(
             }
         }
         if let Some((close_house, _)) = closest_house {
-            commands.entity(santa_entity).insert(SantaHasTarget { target: close_house });
+            commands.entity(santa_entity).insert(SantaHasTarget { target: close_house, in_range: false });
             commands.entity(santa_entity).remove::<SantaNeedsTarget>();
-            target_ew.send(TargetEvent(TargetEventTypes::TargetAqcuired(close_house)));
+            target_ew.send(TargetEvent(TargetEventTypes::Acquired(close_house)));
         }
     }
 }
 
 fn track_target(
     mut rudolphs_nose: Query<(&mut Transform, &RudolphsRedNose)>,
-    santa_query: Query<(Entity, &SantaHasTarget, &GlobalTransform), With<Santa>>,
+    mut santa_query: Query<(Entity, &mut SantaHasTarget, &GlobalTransform), With<Santa>>,
     target_query: Query<&GlobalTransform, (With<NeedsGifts>, Without<RudolphsRedNose>)>,
     mut commands: Commands,
     mut target_ew: EventWriter<TargetEvent>,
 ) {
-    for (santa_entity, santa_has_target, santa_global) in santa_query.iter() {
+    for (santa_entity, mut santa_has_target, santa_global) in santa_query.iter_mut() {
         if let Ok(target_position) = target_query.get(santa_has_target.target) {
             for(mut rudolph_local, _) in rudolphs_nose.iter_mut() {
                 rudolph_local.translation = santa_global.translation() + vec3(0.0, 0.0, 0.5);
 
+                let vector_to_target = target_position.translation() - rudolph_local.translation;
+                let distance = vector_to_target.length();
+                if distance < SANTA_MISSILE_RANGE && !santa_has_target.in_range {
+                    santa_has_target.in_range = true;
+                    target_ew.send(TargetEvent(TargetEventTypes::InRange));
+                } else {
+                    santa_has_target.in_range = false;
+                    target_ew.send(TargetEvent(TargetEventTypes::OutOfRange));
+                }
 
-                let target_trans =  (target_position.translation() - rudolph_local.translation).normalize() * 50.0 + rudolph_local.translation;
+                let target_trans =  (vector_to_target).normalize() * 50.0 + rudolph_local.translation;
                 rudolph_local.look_at(vec3(target_trans.x, GROUND_PLANE, target_trans.z), Vec3::Y);
             }
         } else {
             commands.entity(santa_entity).remove::<SantaHasTarget>();
             commands.entity(santa_entity).insert(SantaNeedsTarget);
-            target_ew.send(TargetEvent(TargetEventTypes::TargetLost));
+            target_ew.send(TargetEvent(TargetEventTypes::Lost));
         }
     }
 }

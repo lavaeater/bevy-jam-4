@@ -8,4 +8,5 @@ pub const SAM_TURN_SPEED: f32 = 0.1;
 pub const SAM_TIME_TO_LIVE: f32 = 10.0;
 pub const SANTA_MAX_SPEED: f32 = 50.0;
 pub const SANTA_ACCELERATION: f32 = 25.0;
+pub const SANTA_MISSILE_RANGE: f32 = 50.0;
 pub const SANTA_TURN_SPEED: f32 = 2.5;

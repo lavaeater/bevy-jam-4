@@ -13,21 +13,31 @@ impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(BellyPlugin)
+            .insert_resource(UiResources {
+                target_color: Color::RED,
+            })
             .add_systems(
                 Startup,
                 spawn_ui,
             )
             .add_systems(
-                Update,(
-                toggle_target_indicator,
-                fellow_system)
+                Update, (
+                    target_indicator_system,
+                    fellow_system),
             )
         ;
     }
 }
 
+
+#[derive(Resource)]
+pub struct UiResources {
+    pub target_color: Color,
+}
+
+
 pub fn spawn_ui_camera(
-    mut commands: bevy::prelude::Commands,
+    mut commands: Commands,
 ) {
     commands.spawn(
         Camera2dBundle::default()
@@ -132,24 +142,24 @@ pub struct AddHealthBar {
     pub name: &'static str,
 }
 
-pub fn toggle_target_indicator(
+pub fn target_indicator_system(
     mut elements: Elements,
     mut target_er: EventReader<TargetEvent>,
 ) {
     for target_aqcuired in &mut target_er.read() {
         match target_aqcuired.0 {
-            TargetEventTypes::TargetAqcuired(house) => {
+            TargetEventTypes::Acquired(house) => {
                 elements.select("body").add_child(eml! {
-                <fellow target=house>
-                    <span><label s:color="#ff0000" value="TARGET" /></span>
+                <fellow target=house c:target_indicator>
+                    <span c:target_child><label s:color="#ff0000" value="TARGET"/></span>
                 </fellow>
         });
             }
-            TargetEventTypes::TargetLost => {
-
+            TargetEventTypes::Lost => {
+                elements.select(".target_indicator").remove();
             }
+            _ => {}
         }
-
     }
 }
 
