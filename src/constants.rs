@@ -2,7 +2,7 @@ pub const GROUND_PLANE: f32 = -15.0;
 pub const SNOW_CEILING: f32 = 20.0;
 pub const SNOW_SPAWN_SIZE: f32 = 50.0;
 
-pub const SAM_MAX_SPEED: f32 = 55.0;
+pub const SAM_MAX_SPEED: f32 = 52.0;
 pub const SAM_ACCELERATION: f32 = 50.0;
 pub const SAM_TURN_SPEED: f32 = 0.1;
 pub const SAM_TIME_TO_LIVE: f32 = 10.0;

@@ -12,6 +12,7 @@ mod ui;
 
 use bevy::{prelude::*};
 use bevy::asset::AssetMetaCheck;
+use bevy::window::WindowResolution;
 use bevy_turborand::prelude::RngPlugin;
 use bevy_xpbd_3d::plugins::{PhysicsPlugins};
 use crate::assets::AssetsPlugin;
@@ -27,7 +28,16 @@ use crate::villages::VillagePlugin;
 fn main() {
     App::new()
         .insert_resource(AssetMetaCheck::Never)
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                fit_canvas_to_parent: true,
+                resolution: WindowResolution::new(
+                    1024.,
+                    768.),
+                ..default()
+            }),
+            ..default()
+        }))
         .add_plugins(GamePlugin)
         .run();
 }

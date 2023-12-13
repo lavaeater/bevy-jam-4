@@ -139,12 +139,10 @@ fn load_level(
         ))
         .id();
 
-        for _ in 0..number_of_sam_sites {
-            spawn_sam_sites_ew.send(SpawnSamSiteAt {
-                position: village_center_position + Vec3::new(global_rng.i32(-(HOUSE_RADIUS / 12)..=(HOUSE_RADIUS/ 12)) as f32, 0.0, global_rng.i32(-(HOUSE_RADIUS / 12)..=(HOUSE_RADIUS/ 12)) as f32),
-                belongs_to: village_entity
-            });
-        }
+        let mut min_x = 0.0;
+        let mut max_x = 0.0;
+        let mut min_y  = 0.0;
+        let mut max_y = 0.0;
 
         for n in 0..number_of_houses {
             let house_type = global_rng.i32(0..3);
@@ -160,6 +158,21 @@ fn load_level(
             let x = village_center_position.x + x_i as f32 * 30.0;
             let z = village_center_position.z + z_i as f32 * 30.0;
             let y = village_center_position.y;
+
+            if x < min_x {
+                min_x = x;
+            }
+            if x > max_x {
+                max_x = x;
+            }
+
+            if y < min_y {
+                min_y = y;
+            }
+            if y > max_y {
+                max_y = y;
+            }
+
             commands.spawn(
                 (
                     FixChildTransform::new(
@@ -194,6 +207,16 @@ fn load_level(
                             Transform::from_xyz(0.0, 0.0, 0.0),
                         ));
                 });
+        }
+        for _ in 0..number_of_sam_sites {
+
+            let x = global_rng.i32(min_x as i32..max_x as i32) as f32;
+            let y = global_rng.i32(min_y as i32..max_y as i32) as f32;
+
+            spawn_sam_sites_ew.send(SpawnSamSiteAt {
+                position: village_center_position + Vec3::new(x, 0.0, y),
+                belongs_to: village_entity
+            });
         }
     }
 }
