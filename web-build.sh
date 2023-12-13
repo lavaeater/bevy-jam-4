@@ -1,5 +1,6 @@
 #!/bin/bash
 
+rm -rf ./out
 cargo build --release --target wasm32-unknown-unknown
 wasm-bindgen --no-typescript --target web \
     --out-dir ./out/ \
