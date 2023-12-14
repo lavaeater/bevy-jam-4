@@ -11,9 +11,12 @@ itertools = "0.12.0"
 belly = { git="https://github.com/jkb0o/belly/", branch="0.12" }
 rand = "0.8.5"
 time = { version = "0.3.30", features = [] }
-#bevy_atmosphere = "0.8.1"
-#bevy_toon_shader = "0.3.0"
+bevy_atmosphere = "0.8.1"
+bevy_toon_shader = "0.3.0"
 bevy_turborand = "0.7.0"
+bevy_mod_outline = "0.6"
+bevy_mod_picking = "0.17.0"
+lava-crate = { git="https://github.com/lavaeater/lava-crate.git", branch="main" }
 
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]

@@ -4,7 +4,7 @@ use belly::prelude::*;
 use bevy::prelude::*;
 use bevy::app::{App, Plugin, Startup};
 use bevy::prelude::{Commands, Entity, Event, EventReader};
-use crate::camera::GameCamera;
+use lava_crate::camera::GameCamera;
 use crate::sam_site::SamSite;
 use crate::santa::{GameEvent, GameEventTypes, Santa, SantaStats, TargetEvent, TargetEventTypes};
 use crate::villages::{House, LoadLevel};

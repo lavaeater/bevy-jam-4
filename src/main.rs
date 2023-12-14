@@ -1,6 +1,5 @@
 mod santa;
 mod environment;
-mod camera;
 mod input;
 mod snow;
 mod assets;
@@ -15,8 +14,8 @@ use bevy::asset::AssetMetaCheck;
 use bevy::window::WindowResolution;
 use bevy_turborand::prelude::RngPlugin;
 use bevy_xpbd_3d::plugins::{PhysicsPlugins};
+use lava_crate::camera::CameraPlugin;
 use crate::assets::AssetsPlugin;
-use crate::camera::CameraPlugin;
 use crate::collisions::CollisionsPlugin;
 use crate::input::InputPlugin;
 use crate::sam_site::SamSitePlugin;
